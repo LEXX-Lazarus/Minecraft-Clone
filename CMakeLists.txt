@@ -24,9 +24,10 @@ find_package(OpenGL REQUIRED)
 # Add GLAD source
 set(GLAD_SOURCES "external/glad/src/glad.c")
 
-# Source files - just main.cpp for now
+# Source files
 set(SOURCES
     src/main.cpp
+    src/Camera.cpp
 )
 
 # Create executable

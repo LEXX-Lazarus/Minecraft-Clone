@@ -6,7 +6,15 @@
 #include <cmath>
 
 #define STB_IMAGE_IMPLEMENTATION
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 26819) // Disable fallthrough warning
+#endif
 #include "stb_image.h"
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+#include "Camera.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -208,7 +216,7 @@ int main(int argc, char* argv[]) {
     SDL_SetWindowRelativeMouseMode(window, true);
 
     // Cube vertices - positioned at world origin (0, 0, 0)
-    float vertices[] = {
+    static const float vertices[] = {
         // Positions          // Texture Coords
         // Top face (y = 0.5) - FIXED WINDING ORDER
         -0.5f,  0.5f, -0.5f,   0.25f, 1.0f,
@@ -247,7 +255,7 @@ int main(int argc, char* argv[]) {
         -0.5f,  0.5f, -0.5f,   0.0f,  0.666f,
     };
 
-    unsigned int indices[] = {
+    static const unsigned int indices[] = {
         0, 1, 2, 2, 3, 0,       // Top
         4, 5, 6, 6, 7, 4,       // Bottom
         8, 9, 10, 10, 11, 8,    // South
@@ -280,20 +288,8 @@ int main(int argc, char* argv[]) {
     unsigned int shaderProgram = createShaderProgram();
     unsigned int texture = loadTexture("assets/textures/GrassBlock.png");
 
-    // Camera variables
-    float cameraX = 0.0f;
-    float cameraY = 1.5f;
-    float cameraZ = 3.0f;
-    float cameraSpeed = 0.05f;
-
-    // Camera rotation (yaw and pitch)
-    float yaw = -90.0f;   // Looking towards -Z initially
-    float pitch = 0.0f;
-    float mouseSensitivity = 0.1f;
-
-    // Camera direction vectors
-    float frontX = 0.0f, frontY = 0.0f, frontZ = -1.0f;
-    float rightX = 1.0f, rightY = 0.0f, rightZ = 0.0f;
+    // Camera
+    Camera camera(0.0f, 1.5f, 3.0f);
 
     bool running = true;
     SDL_Event event;
@@ -309,71 +305,22 @@ int main(int argc, char* argv[]) {
                 }
             }
             if (event.type == SDL_EVENT_MOUSE_MOTION) {
-                float xoffset = event.motion.xrel * mouseSensitivity;
-                float yoffset = -event.motion.yrel * mouseSensitivity;
-
-                yaw += xoffset;
-                pitch += yoffset;
-
-                // Constrain pitch
-                if (pitch > 89.0f) pitch = 89.0f;
-                if (pitch < -89.0f) pitch = -89.0f;
-
-                // Update camera direction
-                float yawRad = yaw * 3.14159f / 180.0f;
-                float pitchRad = pitch * 3.14159f / 180.0f;
-
-                frontX = cos(yawRad) * cos(pitchRad);
-                frontY = sin(pitchRad);
-                frontZ = sin(yawRad) * cos(pitchRad);
-
-                // Normalize front vector
-                float length = sqrt(frontX * frontX + frontY * frontY + frontZ * frontZ);
-                frontX /= length;
-                frontY /= length;
-                frontZ /= length;
-
-                // Calculate right vector (cross product of front and world up)
-                rightX = frontY * 0.0f - frontZ * 1.0f;
-                rightY = frontZ * 0.0f - frontX * 0.0f;
-                rightZ = frontX * 1.0f - frontY * 0.0f;
-
-                // Normalize right vector
-                length = sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
-                rightX /= length;
-                rightY /= length;
-                rightZ /= length;
+                camera.processMouseMovement(event.motion.xrel, -event.motion.yrel);
             }
         }
 
-        // WASD movement (relative to camera direction)
+        // WASD movement
         const bool* keyState = SDL_GetKeyboardState(nullptr);
-        if (keyState[SDL_SCANCODE_W]) {
-            cameraX += frontX * cameraSpeed;
-            cameraY += frontY * cameraSpeed;
-            cameraZ += frontZ * cameraSpeed;
-        }
-        if (keyState[SDL_SCANCODE_S]) {
-            cameraX -= frontX * cameraSpeed;
-            cameraY -= frontY * cameraSpeed;
-            cameraZ -= frontZ * cameraSpeed;
-        }
-        if (keyState[SDL_SCANCODE_A]) {
-            cameraX -= rightX * cameraSpeed;
-            cameraY -= rightY * cameraSpeed;
-            cameraZ -= rightZ * cameraSpeed;
-        }
-        if (keyState[SDL_SCANCODE_D]) {
-            cameraX += rightX * cameraSpeed;
-            cameraY += rightY * cameraSpeed;
-            cameraZ += rightZ * cameraSpeed;
-        }
-        if (keyState[SDL_SCANCODE_SPACE]) {
-            cameraY += cameraSpeed;
-        }
-        if (keyState[SDL_SCANCODE_LSHIFT]) {
-            cameraY -= cameraSpeed;
-        }
+        float deltaFront = 0.0f, deltaRight = 0.0f, deltaUp = 0.0f;
+
+        if (keyState[SDL_SCANCODE_W]) deltaFront += 1.0f;
+        if (keyState[SDL_SCANCODE_S]) deltaFront -= 1.0f;
+        if (keyState[SDL_SCANCODE_D]) deltaRight += 1.0f;
+        if (keyState[SDL_SCANCODE_A]) deltaRight -= 1.0f;
+        if (keyState[SDL_SCANCODE_SPACE]) deltaUp += 1.0f;
+        if (keyState[SDL_SCANCODE_LSHIFT]) deltaUp -= 1.0f;
+
+        camera.processKeyboard(deltaFront, deltaRight, deltaUp);
 
         glClearColor(0.5f, 0.7f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -389,8 +336,8 @@ int main(int argc, char* argv[]) {
 
         // View matrix (camera looking at front direction)
         lookAtMatrix(view,
-            cameraX, cameraY, cameraZ,
-            cameraX + frontX, cameraY + frontY, cameraZ + frontZ,
+            camera.x, camera.y, camera.z,
+            camera.x + camera.frontX, camera.y + camera.frontY, camera.z + camera.frontZ,
             0.0f, 1.0f, 0.0f);
 
         // Projection matrix
