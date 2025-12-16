@@ -30,6 +30,7 @@ set(SOURCES
     src/Camera.cpp
     src/Renderer.cpp
     src/Texture.cpp
+    src/Shader.cpp
 )
 
 # Create executable

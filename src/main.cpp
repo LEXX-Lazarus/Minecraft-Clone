@@ -17,6 +17,7 @@
 #include "Camera.h"
 #include "Renderer.h"
 #include "Texture.h"
+#include "Shader.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -102,44 +103,6 @@ void lookAtMatrix(float* mat, float eyeX, float eyeY, float eyeZ,
     mat[14] = (fX * eyeX + fY * eyeY + fZ * eyeZ);
 }
 
-unsigned int compileShader(unsigned int type, const char* source) {
-    unsigned int shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-
-    int success;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (!success) {
-        char infoLog[512];
-        glGetShaderInfoLog(shader, 512, nullptr, infoLog);
-        std::cerr << "Shader compilation failed:\n" << infoLog << std::endl;
-    }
-    return shader;
-}
-
-unsigned int createShaderProgram() {
-    unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexShaderSource);
-    unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
-
-    unsigned int program = glCreateProgram();
-    glAttachShader(program, vertexShader);
-    glAttachShader(program, fragmentShader);
-    glLinkProgram(program);
-
-    int success;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (!success) {
-        char infoLog[512];
-        glGetProgramInfoLog(program, 512, nullptr, infoLog);
-        std::cerr << "Program linking failed:\n" << infoLog << std::endl;
-    }
-
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-
-    return program;
-}
-
 int main(int argc, char* argv[]) {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
@@ -187,7 +150,7 @@ int main(int argc, char* argv[]) {
     // Capture mouse for FPS controls
     SDL_SetWindowRelativeMouseMode(window, true);
 
-    unsigned int shaderProgram = createShaderProgram();
+    Shader shader(vertexShaderSource, fragmentShaderSource);
     Texture grassTexture("assets/textures/GrassBlock.png");
 
     // Camera
@@ -230,7 +193,7 @@ int main(int argc, char* argv[]) {
         glClearColor(0.5f, 0.7f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glUseProgram(shaderProgram);
+        shader.use();
         grassTexture.bind();
 
         // Create matrices
@@ -249,9 +212,9 @@ int main(int argc, char* argv[]) {
         perspectiveMatrix(projection, 45.0f * 3.14159f / 180.0f, 800.0f / 600.0f, 0.1f, 100.0f);
 
         // Set uniforms
-        unsigned int modelLoc = glGetUniformLocation(shaderProgram, "model");
-        unsigned int viewLoc = glGetUniformLocation(shaderProgram, "view");
-        unsigned int projLoc = glGetUniformLocation(shaderProgram, "projection");
+        unsigned int modelLoc = glGetUniformLocation(shader.getID(), "model");
+        unsigned int viewLoc = glGetUniformLocation(shader.getID(), "view");
+        unsigned int projLoc = glGetUniformLocation(shader.getID(), "projection");
 
         glUniformMatrix4fv(modelLoc, 1, GL_FALSE, model);
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
@@ -261,8 +224,6 @@ int main(int argc, char* argv[]) {
 
         SDL_GL_SwapWindow(window);
     }
-
-    glDeleteProgram(shaderProgram);
 
     SDL_GL_DestroyContext(glContext);
     SDL_DestroyWindow(window);
