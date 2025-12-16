@@ -1,15 +1,6 @@
 # ninja log v6
-15	103	7875624056236351	CMakeFiles/MinecraftClone.dir/src/Camera.cpp.obj	3eb41ed54087054e
-18	296	7875624056266371	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-30	288	7875624827190287	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-25	622	7875624827150289	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
-623	1201	7875624833120302	MinecraftClone.exe	75b7447be7bc879
-36	329	7875625831478163	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-32	671	7875625831433122	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
-672	1143	7875625837828137	MinecraftClone.exe	75b7447be7bc879
-33	290	7875626160730414	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-30	779	7875626160690401	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
-781	1341	7875626168231156	MinecraftClone.exe	75b7447be7bc879
-35	306	7875626688350394	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-30	655	7875626688305384	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
-656	1021	7875626694560371	MinecraftClone.exe	75b7447be7bc879
+18	81	7875636171383107	CMakeFiles/MinecraftClone.dir/src/Renderer.cpp.obj	39581a1fb28d08db
+15	104	7875636171353097	CMakeFiles/MinecraftClone.dir/src/Camera.cpp.obj	3eb41ed54087054e
+21	297	7875636171413101	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
+11	641	7875636171313084	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
+653	1641	7875636177733091	MinecraftClone.exe	43ab296a312a323c

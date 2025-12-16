@@ -15,6 +15,7 @@
 #pragma warning(pop)
 #endif
 #include "Camera.h"
+#include "Renderer.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -215,81 +216,14 @@ int main(int argc, char* argv[]) {
     // Capture mouse for FPS controls
     SDL_SetWindowRelativeMouseMode(window, true);
 
-    // Cube vertices - positioned at world origin (0, 0, 0)
-    static const float vertices[] = {
-        // Positions          // Texture Coords
-        // Top face (y = 0.5) - FIXED WINDING ORDER
-        -0.5f,  0.5f, -0.5f,   0.25f, 1.0f,
-        -0.5f,  0.5f,  0.5f,   0.25f, 0.666f,
-        0.5f,  0.5f,  0.5f,   0.5f,  0.666f,
-        0.5f,  0.5f, -0.5f,   0.5f,  1.0f,
-
-        // Bottom face (y = -0.5) - FIXED WINDING ORDER
-        -0.5f, -0.5f,  0.5f,   0.25f, 0.333f,
-        -0.5f, -0.5f, -0.5f,   0.25f, 0.0f,
-        0.5f, -0.5f, -0.5f,   0.5f,  0.0f,
-        0.5f, -0.5f,  0.5f,   0.5f,  0.333f,
-
-        // South face (z = 0.5)
-        -0.5f, -0.5f,  0.5f,   0.25f, 0.333f,
-        0.5f, -0.5f,  0.5f,   0.5f,  0.333f,
-        0.5f,  0.5f,  0.5f,   0.5f,  0.666f,
-        -0.5f,  0.5f,  0.5f,   0.25f, 0.666f,
-
-        // North face (z = -0.5)
-        0.5f, -0.5f, -0.5f,   0.75f, 0.333f,
-        -0.5f, -0.5f, -0.5f,   1.0f,  0.333f,
-        -0.5f,  0.5f, -0.5f,   1.0f,  0.666f,
-        0.5f,  0.5f, -0.5f,   0.75f, 0.666f,
-
-        // East face (x = 0.5)
-        0.5f, -0.5f,  0.5f,   0.5f,  0.333f,
-        0.5f, -0.5f, -0.5f,   0.75f, 0.333f,
-        0.5f,  0.5f, -0.5f,   0.75f, 0.666f,
-        0.5f,  0.5f,  0.5f,   0.5f,  0.666f,
-
-        // West face (x = -0.5)
-        -0.5f, -0.5f, -0.5f,   0.0f,  0.333f,
-        -0.5f, -0.5f,  0.5f,   0.25f, 0.333f,
-        -0.5f,  0.5f,  0.5f,   0.25f, 0.666f,
-        -0.5f,  0.5f, -0.5f,   0.0f,  0.666f,
-    };
-
-    static const unsigned int indices[] = {
-        0, 1, 2, 2, 3, 0,       // Top
-        4, 5, 6, 6, 7, 4,       // Bottom
-        8, 9, 10, 10, 11, 8,    // South
-        12, 13, 14, 14, 15, 12, // North
-        16, 17, 18, 18, 19, 16, // East
-        20, 21, 22, 22, 23, 20  // West
-    };
-
-    unsigned int VAO, VBO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-
-    glBindVertexArray(VAO);
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
-    glEnableVertexAttribArray(0);
-
-    // Texture coord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
-
     unsigned int shaderProgram = createShaderProgram();
     unsigned int texture = loadTexture("assets/textures/GrassBlock.png");
 
     // Camera
     Camera camera(0.0f, 1.5f, 3.0f);
+
+    // Renderer
+    Renderer renderer;
 
     bool running = true;
     SDL_Event event;
@@ -352,15 +286,11 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
-        glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        renderer.render();
 
         SDL_GL_SwapWindow(window);
     }
 
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
     glDeleteProgram(shaderProgram);
 
     SDL_GL_DestroyContext(glContext);
