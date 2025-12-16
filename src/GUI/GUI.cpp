@@ -1,4 +1,4 @@
-#include "GUI.h"
+#include "GUI/GUI.h"
 #include "stb_image.h"
 #include <iostream>
 

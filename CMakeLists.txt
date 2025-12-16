@@ -32,7 +32,8 @@ set(SOURCES
     src/Texture.cpp
     src/Shader.cpp
     src/Window.cpp
-    src/GUI.cpp
+    src/GUI/GUI.cpp
+    src/GUI/DebugOverlay.cpp
     src/Chunk.cpp
 )
 

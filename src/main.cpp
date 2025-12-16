@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <chrono>
 
 #define STB_IMAGE_IMPLEMENTATION
 #ifdef _MSC_VER
@@ -19,7 +20,8 @@
 #include "Texture.h"
 #include "Shader.h"
 #include "Window.h"
-#include "GUI.h"
+#include "GUI/GUI.h"
+#include "GUI/DebugOverlay.h"
 #include "Chunk.h"
 
 // Vertex shader source
@@ -119,6 +121,10 @@ int main(int argc, char* argv[]) {
     GUI gui;
     gui.initialize();
 
+    // Initialize Debug Overlay
+    DebugOverlay debugOverlay;
+    debugOverlay.initialize();
+
     // Capture mouse for FPS controls
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
@@ -136,7 +142,22 @@ int main(int argc, char* argv[]) {
     bool running = true;
     SDL_Event event;
 
+    // FPS tracking
+    auto lastTime = std::chrono::high_resolution_clock::now();
+    int fpsFrameCount = 0;
+    float fps = 0.0f;
+
     while (running) {
+        // Calculate FPS
+        fpsFrameCount++;
+        auto currentTime = std::chrono::high_resolution_clock::now();
+        float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
+        if (deltaTime >= 1.0f) {
+            fps = fpsFrameCount / deltaTime;
+            fpsFrameCount = 0;
+            lastTime = currentTime;
+        }
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
@@ -144,6 +165,9 @@ int main(int argc, char* argv[]) {
             if (event.type == SDL_EVENT_KEY_DOWN) {
                 if (event.key.key == SDLK_ESCAPE) {
                     window.togglePause();
+                }
+                if (event.key.key == SDLK_F3) {
+                    debugOverlay.toggle();
                 }
             }
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && window.isPaused()) {
@@ -213,6 +237,11 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
         chunk.render();
+
+        // Render debug overlay (outputs to console)
+        debugOverlay.render(window.getWidth(), window.getHeight(),
+            camera.x, camera.y, camera.z,
+            camera.yaw, fps);
 
         // Draw pause menu overlay
         if (window.isPaused()) {
