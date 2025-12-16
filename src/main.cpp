@@ -18,6 +18,7 @@
 #include "Renderer.h"
 #include "Texture.h"
 #include "Shader.h"
+#include "Window.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -104,51 +105,16 @@ void lookAtMatrix(float* mat, float eyeX, float eyeY, float eyeZ,
 }
 
 int main(int argc, char* argv[]) {
-    if (!SDL_Init(SDL_INIT_VIDEO)) {
-        std::cerr << "Failed to initialize SDL: " << SDL_GetError() << std::endl;
+    Window window("Minecraft Clone", 800, 600);
+    if (!window.initialize()) {
         return -1;
     }
-
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-
-    SDL_Window* window = SDL_CreateWindow(
-        "Minecraft Clone",
-        800, 600,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE
-    );
-
-    if (!window) {
-        std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return -1;
-    }
-
-    SDL_GLContext glContext = SDL_GL_CreateContext(window);
-    if (!glContext) {
-        std::cerr << "Failed to create OpenGL context: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
-    if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        std::cerr << "Failed to initialize GLAD" << std::endl;
-        SDL_GL_DestroyContext(glContext);
-        SDL_DestroyWindow(window);
-        SDL_Quit();
-        return -1;
-    }
-
-    SDL_GL_SetSwapInterval(1);
-    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
     // Capture mouse for FPS controls
-    SDL_SetWindowRelativeMouseMode(window, true);
+    SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
     Texture grassTexture("assets/textures/GrassBlock.png");
@@ -169,8 +135,11 @@ int main(int argc, char* argv[]) {
             }
             if (event.type == SDL_EVENT_KEY_DOWN) {
                 if (event.key.key == SDLK_ESCAPE) {
-                    running = false;
+                    window.toggleFullscreen();
                 }
+            }
+            if (event.type == SDL_EVENT_WINDOW_RESIZED) {
+                window.handleResize(event.window.data1, event.window.data2);
             }
             if (event.type == SDL_EVENT_MOUSE_MOTION) {
                 camera.processMouseMovement(event.motion.xrel, -event.motion.yrel);
@@ -208,8 +177,9 @@ int main(int argc, char* argv[]) {
             camera.x + camera.frontX, camera.y + camera.frontY, camera.z + camera.frontZ,
             0.0f, 1.0f, 0.0f);
 
-        // Projection matrix
-        perspectiveMatrix(projection, 45.0f * 3.14159f / 180.0f, 800.0f / 600.0f, 0.1f, 100.0f);
+        // Projection matrix - USE WINDOW DIMENSIONS
+        perspectiveMatrix(projection, 45.0f * 3.14159f / 180.0f,
+            (float)window.getWidth() / (float)window.getHeight(), 0.1f, 100.0f);
 
         // Set uniforms
         unsigned int modelLoc = glGetUniformLocation(shader.getID(), "model");
@@ -222,11 +192,9 @@ int main(int argc, char* argv[]) {
 
         renderer.render();
 
-        SDL_GL_SwapWindow(window);
+        window.swapBuffers();
     }
 
-    SDL_GL_DestroyContext(glContext);
-    SDL_DestroyWindow(window);
     SDL_Quit();
 
     return 0;

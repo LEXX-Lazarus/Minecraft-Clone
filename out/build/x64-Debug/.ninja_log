@@ -1,13 +1,15 @@
 # ninja log v6
-30	100	7875643812178854	CMakeFiles/MinecraftClone.dir/src/Renderer.cpp.obj	39581a1fb28d08db
-15	104	7875636171353097	CMakeFiles/MinecraftClone.dir/src/Camera.cpp.obj	3eb41ed54087054e
-38	322	7875643812253852	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-26	665	7875643812133846	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
-665	1383	7875643818528858	MinecraftClone.exe	69f19dcb00433839
-34	537	7875643812213853	CMakeFiles/MinecraftClone.dir/src/Texture.cpp.obj	857c4bc64c005cc7
-30	102	7875646040377887	CMakeFiles/MinecraftClone.dir/src/Renderer.cpp.obj	39581a1fb28d08db
-42	337	7875646040492927	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-38	549	7875646040452911	CMakeFiles/MinecraftClone.dir/src/Shader.cpp.obj	63a76f68fa94fb0e
-34	552	7875646040412891	CMakeFiles/MinecraftClone.dir/src/Texture.cpp.obj	857c4bc64c005cc7
-26	706	7875646040332891	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
-706	1100	7875646047132890	MinecraftClone.exe	77b548d9fa2c58a6
+17	94	7875654854435057	CMakeFiles/MinecraftClone.dir/src/Renderer.cpp.obj	39581a1fb28d08db
+13	127	7875654854395040	CMakeFiles/MinecraftClone.dir/src/Camera.cpp.obj	3eb41ed54087054e
+29	351	7875654854555039	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
+9	708	7875654854355047	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
+708	1184	7875654861340029	MinecraftClone.exe	77b548d9fa2c58a6
+21	565	7875654854470048	CMakeFiles/MinecraftClone.dir/src/Texture.cpp.obj	857c4bc64c005cc7
+25	557	7875654854510043	CMakeFiles/MinecraftClone.dir/src/Shader.cpp.obj	63a76f68fa94fb0e
+32	127	7875658602296032	CMakeFiles/MinecraftClone.dir/src/Renderer.cpp.obj	39581a1fb28d08db
+48	399	7875658602456022	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
+40	648	7875658602371012	CMakeFiles/MinecraftClone.dir/src/Shader.cpp.obj	63a76f68fa94fb0e
+35	660	7875658602331018	CMakeFiles/MinecraftClone.dir/src/Texture.cpp.obj	857c4bc64c005cc7
+44	752	7875658602411017	CMakeFiles/MinecraftClone.dir/src/Window.cpp.obj	61cf38630428c7f
+27	802	7875658602246019	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
+803	1204	7875658610000997	MinecraftClone.exe	cc92629c9ffa54a9
