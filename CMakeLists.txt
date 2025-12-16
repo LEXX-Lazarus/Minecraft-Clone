@@ -32,6 +32,7 @@ set(SOURCES
     src/Texture.cpp
     src/Shader.cpp
     src/Window.cpp
+    src/GUI.cpp
 )
 
 # Create executable

@@ -55,6 +55,14 @@ bool Window::initialize() {
 }
 
 void Window::toggleFullscreen() {
+    // Get current mouse position in old coordinate system
+    float mouseX, mouseY;
+    SDL_GetMouseState(&mouseX, &mouseY);
+
+    // Calculate normalized position (0.0 to 1.0)
+    float normalizedX = mouseX / width;
+    float normalizedY = mouseY / height;
+
     fullscreen = !fullscreen;
 
     if (fullscreen) {
@@ -63,6 +71,12 @@ void Window::toggleFullscreen() {
     else {
         SDL_SetWindowFullscreen(window, false);
     }
+
+    // SDL updates width/height after fullscreen change, so get new dimensions
+    SDL_GetWindowSize(window, &width, &height);
+
+    // Warp mouse to same normalized position in new coordinate system
+    SDL_WarpMouseInWindow(window, normalizedX * width, normalizedY * height);
 }
 
 void Window::togglePause() {

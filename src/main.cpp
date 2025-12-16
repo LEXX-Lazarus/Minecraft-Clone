@@ -19,6 +19,7 @@
 #include "Texture.h"
 #include "Shader.h"
 #include "Window.h"
+#include "GUI.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -113,6 +114,10 @@ int main(int argc, char* argv[]) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
+    // Initialize GUI
+    GUI gui;
+    gui.initialize();
+
     // Capture mouse for FPS controls
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
@@ -139,25 +144,15 @@ int main(int argc, char* argv[]) {
                 }
             }
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && window.isPaused()) {
-                int mouseX = event.button.x;
-                int mouseY = event.button.y;
-
-                // Fullscreen button (center of screen, 200x50 pixels)
-                int buttonX = window.getWidth() / 2 - 100;
-                int buttonY = window.getHeight() / 2 - 25;
-                int buttonW = 200;
-                int buttonH = 50;
-
-                if (mouseX >= buttonX && mouseX <= buttonX + buttonW &&
-                    mouseY >= buttonY && mouseY <= buttonY + buttonH) {
-                    window.toggleFullscreen();
-                }
-
-                // Resume button (above fullscreen)
-                int resumeButtonY = buttonY - 70;
-                if (mouseX >= buttonX && mouseX <= buttonX + buttonW &&
-                    mouseY >= resumeButtonY && mouseY <= resumeButtonY + buttonH) {
-                    window.togglePause();
+                int buttonID;
+                if (gui.isButtonClicked(event.button.x, event.button.y,
+                    window.getWidth(), window.getHeight(), buttonID)) {
+                    if (buttonID == GUI::BUTTON_RESUME) {
+                        window.togglePause();
+                    }
+                    else if (buttonID == GUI::BUTTON_FULLSCREEN) {
+                        window.toggleFullscreen();
+                    }
                 }
             }
             if (event.type == SDL_EVENT_WINDOW_RESIZED) {
@@ -218,20 +213,7 @@ int main(int argc, char* argv[]) {
 
         // Draw pause menu overlay
         if (window.isPaused()) {
-            // Just disable depth test - we'll draw simple overlay
-            glDisable(GL_DEPTH_TEST);
-            glDisable(GL_CULL_FACE);
-
-            // Enable blending for transparency
-            glEnable(GL_BLEND);
-            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-            // We'll use immediate mode compatibility profile functions
-            // Note: This is a simple solution - for production you'd want a proper 2D shader
-
-            glDisable(GL_BLEND);
-            glEnable(GL_DEPTH_TEST);
-            glEnable(GL_CULL_FACE);
+            gui.renderPauseMenu(window.getWidth(), window.getHeight());
         }
 
         window.swapBuffers();
