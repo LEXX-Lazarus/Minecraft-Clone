@@ -135,29 +135,53 @@ int main(int argc, char* argv[]) {
             }
             if (event.type == SDL_EVENT_KEY_DOWN) {
                 if (event.key.key == SDLK_ESCAPE) {
+                    window.togglePause();
+                }
+            }
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && window.isPaused()) {
+                int mouseX = event.button.x;
+                int mouseY = event.button.y;
+
+                // Fullscreen button (center of screen, 200x50 pixels)
+                int buttonX = window.getWidth() / 2 - 100;
+                int buttonY = window.getHeight() / 2 - 25;
+                int buttonW = 200;
+                int buttonH = 50;
+
+                if (mouseX >= buttonX && mouseX <= buttonX + buttonW &&
+                    mouseY >= buttonY && mouseY <= buttonY + buttonH) {
                     window.toggleFullscreen();
+                }
+
+                // Resume button (above fullscreen)
+                int resumeButtonY = buttonY - 70;
+                if (mouseX >= buttonX && mouseX <= buttonX + buttonW &&
+                    mouseY >= resumeButtonY && mouseY <= resumeButtonY + buttonH) {
+                    window.togglePause();
                 }
             }
             if (event.type == SDL_EVENT_WINDOW_RESIZED) {
                 window.handleResize(event.window.data1, event.window.data2);
             }
-            if (event.type == SDL_EVENT_MOUSE_MOTION) {
+            if (event.type == SDL_EVENT_MOUSE_MOTION && !window.isPaused()) {
                 camera.processMouseMovement(event.motion.xrel, -event.motion.yrel);
             }
         }
 
-        // WASD movement
-        const bool* keyState = SDL_GetKeyboardState(nullptr);
-        float deltaFront = 0.0f, deltaRight = 0.0f, deltaUp = 0.0f;
+        // WASD movement (only when not paused)
+        if (!window.isPaused()) {
+            const bool* keyState = SDL_GetKeyboardState(nullptr);
+            float deltaFront = 0.0f, deltaRight = 0.0f, deltaUp = 0.0f;
 
-        if (keyState[SDL_SCANCODE_W]) deltaFront += 1.0f;
-        if (keyState[SDL_SCANCODE_S]) deltaFront -= 1.0f;
-        if (keyState[SDL_SCANCODE_D]) deltaRight += 1.0f;
-        if (keyState[SDL_SCANCODE_A]) deltaRight -= 1.0f;
-        if (keyState[SDL_SCANCODE_SPACE]) deltaUp += 1.0f;
-        if (keyState[SDL_SCANCODE_LSHIFT]) deltaUp -= 1.0f;
+            if (keyState[SDL_SCANCODE_W]) deltaFront += 1.0f;
+            if (keyState[SDL_SCANCODE_S]) deltaFront -= 1.0f;
+            if (keyState[SDL_SCANCODE_D]) deltaRight += 1.0f;
+            if (keyState[SDL_SCANCODE_A]) deltaRight -= 1.0f;
+            if (keyState[SDL_SCANCODE_SPACE]) deltaUp += 1.0f;
+            if (keyState[SDL_SCANCODE_LSHIFT]) deltaUp -= 1.0f;
 
-        camera.processKeyboard(deltaFront, deltaRight, deltaUp);
+            camera.processKeyboard(deltaFront, deltaRight, deltaUp);
+        }
 
         glClearColor(0.5f, 0.7f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -191,6 +215,24 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
         renderer.render();
+
+        // Draw pause menu overlay
+        if (window.isPaused()) {
+            // Just disable depth test - we'll draw simple overlay
+            glDisable(GL_DEPTH_TEST);
+            glDisable(GL_CULL_FACE);
+
+            // Enable blending for transparency
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+            // We'll use immediate mode compatibility profile functions
+            // Note: This is a simple solution - for production you'd want a proper 2D shader
+
+            glDisable(GL_BLEND);
+            glEnable(GL_DEPTH_TEST);
+            glEnable(GL_CULL_FACE);
+        }
 
         window.swapBuffers();
     }

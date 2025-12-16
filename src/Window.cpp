@@ -4,7 +4,7 @@
 
 Window::Window(const char* title, int width, int height)
     : window(nullptr), glContext(nullptr), width(width), height(height),
-    fullscreen(false), title(title) {
+    fullscreen(false), paused(false), title(title) {
 }
 
 Window::~Window() {
@@ -63,6 +63,11 @@ void Window::toggleFullscreen() {
     else {
         SDL_SetWindowFullscreen(window, false);
     }
+}
+
+void Window::togglePause() {
+    paused = !paused;
+    SDL_SetWindowRelativeMouseMode(window, !paused);
 }
 
 void Window::handleResize(int newWidth, int newHeight) {

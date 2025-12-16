@@ -11,6 +11,7 @@ public:
 
     bool initialize();
     void toggleFullscreen();
+    void togglePause();
     void handleResize(int newWidth, int newHeight);
     void swapBuffers();
 
@@ -18,6 +19,7 @@ public:
     int getWidth() const { return width; }
     int getHeight() const { return height; }
     bool isFullscreen() const { return fullscreen; }
+    bool isPaused() const { return paused; }
 
 private:
     SDL_Window* window;
@@ -25,6 +27,7 @@ private:
     int width;
     int height;
     bool fullscreen;
+    bool paused;
     std::string title;
 };
 
