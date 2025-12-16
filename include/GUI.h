@@ -20,9 +20,14 @@ public:
 private:
     unsigned int VAO, VBO;
     unsigned int shaderProgram;
+    unsigned int texturedShaderProgram;
+    unsigned int fullscreenButtonTexture;
+    unsigned int resumeButtonTexture;  // Make sure this line exists!
 
     void setupMesh();
     unsigned int createGUIShader();
+    unsigned int createTexturedGUIShader();
+    unsigned int loadButtonTexture(const char* path);
 };
 
 #endif
