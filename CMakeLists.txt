@@ -33,6 +33,7 @@ set(SOURCES
     src/Shader.cpp
     src/Window.cpp
     src/GUI.cpp
+    src/Chunk.cpp
 )
 
 # Create executable

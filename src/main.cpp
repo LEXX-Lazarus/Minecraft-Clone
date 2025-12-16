@@ -20,6 +20,7 @@
 #include "Shader.h"
 #include "Window.h"
 #include "GUI.h"
+#include "Chunk.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -127,8 +128,10 @@ int main(int argc, char* argv[]) {
     // Camera
     Camera camera(0.0f, 1.5f, 3.0f);
 
-    // Renderer
-    Renderer renderer;
+    // Create and generate chunk
+    Chunk chunk(0, 0);  // Chunk at world position (0, 0)
+    chunk.generate();
+    chunk.buildMesh();
 
     bool running = true;
     SDL_Event event;
@@ -209,7 +212,7 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
-        renderer.render();
+        chunk.render();
 
         // Draw pause menu overlay
         if (window.isPaused()) {
