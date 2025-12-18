@@ -49,7 +49,7 @@ void Chunk::buildMesh() {
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
 
-    int vertexCount = 0;
+    unsigned int vertexCount = 0;
 
     // Iterate through all blocks in the chunk
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
@@ -62,20 +62,19 @@ void Chunk::buildMesh() {
                 // World position of this block
                 float worldX = chunkX * CHUNK_SIZE_X + x;
                 float worldY = y;
-                float worldZ = chunkZ * CHUNK_SIZE_Z + z;
+                float worldZ = -(chunkZ * CHUNK_SIZE_Z + z);
 
-                // Check each face and only add if exposed
                 // Top face (y+1)
                 if (getBlock(x, y + 1, z).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.25f, 1.0f,
                         worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,
                         worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.5f,  1.0f
+                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.5f,  1.0f,
+                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.25f, 1.0f
                         });
                     indices.insert(indices.end(), {
-                        (unsigned int)vertexCount, (unsigned int)(vertexCount + 1), (unsigned int)(vertexCount + 2),
-                        (unsigned int)(vertexCount + 2), (unsigned int)(vertexCount + 3), (unsigned int)vertexCount
+                        vertexCount, vertexCount + 1, vertexCount + 2,
+                        vertexCount + 2, vertexCount + 3, vertexCount
                         });
                     vertexCount += 4;
                 }
@@ -83,20 +82,20 @@ void Chunk::buildMesh() {
                 // Bottom face (y-1)
                 if (getBlock(x, y - 1, z).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,
                         worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.25f, 0.0f,
                         worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.5f,  0.0f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f
+                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,
+                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f
                         });
                     indices.insert(indices.end(), {
-                        (unsigned int)vertexCount, (unsigned int)(vertexCount + 1), (unsigned int)(vertexCount + 2),
-                        (unsigned int)(vertexCount + 2), (unsigned int)(vertexCount + 3), (unsigned int)vertexCount
+                        vertexCount, vertexCount + 1, vertexCount + 2,
+                        vertexCount + 2, vertexCount + 3, vertexCount
                         });
                     vertexCount += 4;
                 }
 
-                // South face (z+1)
-                if (getBlock(x, y, z + 1).isAir()) {
+                // South face (faces +Z direction) - CHECK z-1 since Z is negated
+                if (getBlock(x, y, z - 1).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,
                         worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,
@@ -104,14 +103,14 @@ void Chunk::buildMesh() {
                         worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f
                         });
                     indices.insert(indices.end(), {
-                        (unsigned int)vertexCount, (unsigned int)(vertexCount + 1), (unsigned int)(vertexCount + 2),
-                        (unsigned int)(vertexCount + 2), (unsigned int)(vertexCount + 3), (unsigned int)vertexCount
+                        vertexCount, vertexCount + 1, vertexCount + 2,
+                        vertexCount + 2, vertexCount + 3, vertexCount
                         });
                     vertexCount += 4;
                 }
 
-                // North face (z-1)
-                if (getBlock(x, y, z - 1).isAir()) {
+                // North face (faces -Z direction) - CHECK z+1 since Z is negated
+                if (getBlock(x, y, z + 1).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,
                         worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   1.0f,  0.333f,
@@ -119,8 +118,8 @@ void Chunk::buildMesh() {
                         worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.75f, 0.666f
                         });
                     indices.insert(indices.end(), {
-                        (unsigned int)vertexCount, (unsigned int)(vertexCount + 1), (unsigned int)(vertexCount + 2),
-                        (unsigned int)(vertexCount + 2), (unsigned int)(vertexCount + 3), (unsigned int)vertexCount
+                        vertexCount, vertexCount + 1, vertexCount + 2,
+                        vertexCount + 2, vertexCount + 3, vertexCount
                         });
                     vertexCount += 4;
                 }
@@ -134,8 +133,8 @@ void Chunk::buildMesh() {
                         worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f
                         });
                     indices.insert(indices.end(), {
-                        (unsigned int)vertexCount, (unsigned int)(vertexCount + 1), (unsigned int)(vertexCount + 2),
-                        (unsigned int)(vertexCount + 2), (unsigned int)(vertexCount + 3), (unsigned int)vertexCount
+                        vertexCount, vertexCount + 1, vertexCount + 2,
+                        vertexCount + 2, vertexCount + 3, vertexCount
                         });
                     vertexCount += 4;
                 }
@@ -149,8 +148,8 @@ void Chunk::buildMesh() {
                         worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.0f,  0.666f
                         });
                     indices.insert(indices.end(), {
-                        (unsigned int)vertexCount, (unsigned int)(vertexCount + 1), (unsigned int)(vertexCount + 2),
-                        (unsigned int)(vertexCount + 2), (unsigned int)(vertexCount + 3), (unsigned int)vertexCount
+                        vertexCount, vertexCount + 1, vertexCount + 2,
+                        vertexCount + 2, vertexCount + 3, vertexCount
                         });
                     vertexCount += 4;
                 }

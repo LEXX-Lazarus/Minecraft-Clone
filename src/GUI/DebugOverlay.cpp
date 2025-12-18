@@ -196,30 +196,16 @@ void DebugOverlay::render(int windowWidth, int windowHeight,
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Camera coordinates (what the camera reports)
-    std::string cameraPosText = "Camera Pos: " + std::to_string((int)posX) + ", " +
-        std::to_string((int)posY) + ", " + std::to_string((int)posZ);
-
-    // Chunk-aligned coordinates (interpreting position as chunk system)
-    // Chunks place blocks at worldX = chunkX * 16 + x
-    // So if we're at camera position (5, 1, 8), we're at chunk block (5, 1, 8)
-    std::string chunkPosText = "Chunk Grid Pos: " + std::to_string((int)posX) + ", " +
-        std::to_string((int)posY) + ", " + std::to_string((int)posZ);
-
-    // Display-friendly position (what we WANT to show the user)
-    std::string displayPosText = "Display Pos: " + std::to_string((int)posX) + ", " +
-        std::to_string((int)posY) + ", " + std::to_string((int)(-posZ));  // Negated Z
-
+    std::string posText = "Position: " + std::to_string((int)posX) + ", " +
+        std::to_string((int)posY) + ", " + std::to_string((int)(-posZ));  // Show as positive
     std::string yawText = "Yaw: " + std::to_string((int)yaw);
     std::string dirText = "Direction: " + getCardinalDirection(yaw);
     std::string fpsText = "FPS: " + std::to_string((int)fps);
 
-    renderText(cameraPosText, 10, 50, 1.0f, windowWidth, windowHeight);
-    renderText(chunkPosText, 10, 75, 1.0f, windowWidth, windowHeight);
-    renderText(displayPosText, 10, 100, 1.0f, windowWidth, windowHeight);
-    renderText(yawText, 10, 125, 1.0f, windowWidth, windowHeight);
-    renderText(dirText, 10, 150, 1.0f, windowWidth, windowHeight);
-    renderText(fpsText, 10, 175, 1.0f, windowWidth, windowHeight);
+    renderText(posText, 10, 50, 1.2f, windowWidth, windowHeight);
+    renderText(yawText, 10, 80, 1.2f, windowWidth, windowHeight);
+    renderText(dirText, 10, 110, 1.2f, windowWidth, windowHeight);
+    renderText(fpsText, 10, 140, 1.2f, windowWidth, windowHeight);
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);

@@ -132,7 +132,7 @@ int main(int argc, char* argv[]) {
     Texture grassTexture("assets/textures/GrassBlock.png");
 
     // Camera
-    Camera camera(0.0f, 1.5f, 3.0f);
+    Camera camera(0.0f, 1.0f, 0.0f);
 
     // Create and generate chunk
     Chunk chunk(0, 0);  // Chunk at world position (0, 0)
