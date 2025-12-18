@@ -11,13 +11,11 @@ Camera::Camera(float posX, float posY, float posZ)
 }
 
 void Camera::processMouseMovement(float xoffset, float yoffset) {
-    yaw += xoffset * sensitivity;
+    yaw -= xoffset * sensitivity;  // NEGATE xoffset
     pitch += yoffset * sensitivity;
-
     // Constrain pitch
     if (pitch > 89.0f) pitch = 89.0f;
     if (pitch < -89.0f) pitch = -89.0f;
-
     updateVectors();
 }
 
@@ -39,20 +37,20 @@ void Camera::updateVectors() {
     // Calculate front vector
     frontX = std::cos(yawRad) * std::cos(pitchRad);
     frontY = std::sin(pitchRad);
-    frontZ = std::sin(yawRad) * std::cos(pitchRad);
+    frontZ = -std::sin(yawRad) * std::cos(pitchRad);  // NEGATE Z
 
-    // Normalize
+    // Normalize front
     float length = std::sqrt(frontX * frontX + frontY * frontY + frontZ * frontZ);
     frontX /= length;
     frontY /= length;
     frontZ /= length;
 
     // Calculate right vector
-    rightX = frontY * 0.0f - frontZ * 1.0f;
-    rightY = frontZ * 0.0f - frontX * 0.0f;
-    rightZ = frontX * 1.0f - frontY * 0.0f;
+    rightX = -frontZ;
+    rightY = 0.0f;
+    rightZ = frontX;
 
-    // Normalize
+    // Normalize right
     length = std::sqrt(rightX * rightX + rightY * rightY + rightZ * rightZ);
     rightX /= length;
     rightY /= length;

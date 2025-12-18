@@ -18,7 +18,22 @@ public:
 
 private:
     bool enabled;
+    unsigned int VAO, VBO;
+    unsigned int shaderProgram;
+    unsigned int fontTexture;
+    unsigned char* fontBitmap;
 
+    struct CharInfo {
+        float x0, y0, x1, y1;
+        float xoff, yoff, xadvance;
+    };
+    CharInfo charInfo[128];
+
+    void setupMesh();
+    unsigned int createTextShader();
+    bool loadFont(const char* fontPath);
+    void renderText(const std::string& text, float x, float y, float scale,
+        int windowWidth, int windowHeight);
     std::string getCardinalDirection(float yaw);
 };
 
