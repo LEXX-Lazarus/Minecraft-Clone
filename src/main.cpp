@@ -26,6 +26,11 @@
 #include "TerrainGenerator.h"
 #include "ChunkManager.h"
 
+enum class GameMode {
+    SPECTATOR,
+    SURVIVAL
+};
+
 // Vertex shader source
 const char* vertexShaderSource = R"(
 #version 330 core
@@ -137,6 +142,8 @@ int main(int argc, char* argv[]) {
 
     // Camera
     Camera camera(0.0f, 60.0f, 0.0f);
+    GameMode currentGameMode = GameMode::SPECTATOR;  // Start in spectator
+    camera.setGameMode(currentGameMode == GameMode::SPECTATOR);
 
     // Create chunk manager with 12 chunk render distance
     ChunkManager chunkManager(12);
@@ -147,16 +154,22 @@ int main(int argc, char* argv[]) {
 
     // FPS tracking
     auto lastTime = std::chrono::high_resolution_clock::now();
+    auto lastFrameTime = lastTime;  // ADD THIS for deltaTime
     int fpsFrameCount = 0;
     float fps = 0.0f;
 
     while (running) {
+        // Calculate delta time for physics
+        auto currentFrameTime = std::chrono::high_resolution_clock::now();
+        float deltaTime = std::chrono::duration<float>(currentFrameTime - lastFrameTime).count();
+        lastFrameTime = currentFrameTime;
+
         // Calculate FPS
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
-        float deltaTime = std::chrono::duration<float>(currentTime - lastTime).count();
-        if (deltaTime >= 1.0f) {
-            fps = fpsFrameCount / deltaTime;
+        float fpsTime = std::chrono::duration<float>(currentTime - lastTime).count();
+        if (fpsTime >= 1.0f) {
+            fps = fpsFrameCount / fpsTime;
             fpsFrameCount = 0;
             lastTime = currentTime;
         }
@@ -197,15 +210,31 @@ int main(int argc, char* argv[]) {
         if (!window.isPaused()) {
             const bool* keyState = SDL_GetKeyboardState(nullptr);
             float deltaFront = 0.0f, deltaRight = 0.0f, deltaUp = 0.0f;
+            bool jump = false;
 
-            if (keyState[SDL_SCANCODE_W]) deltaFront += 1.0f;
-            if (keyState[SDL_SCANCODE_S]) deltaFront -= 1.0f;
-            if (keyState[SDL_SCANCODE_D]) deltaRight += 1.0f;
-            if (keyState[SDL_SCANCODE_A]) deltaRight -= 1.0f;
-            if (keyState[SDL_SCANCODE_SPACE]) deltaUp += 1.0f;
-            if (keyState[SDL_SCANCODE_LSHIFT]) deltaUp -= 1.0f;
+            // Check if sprinting (SHIFT doubles speed)
+            bool isSprinting = keyState[SDL_SCANCODE_LSHIFT] || keyState[SDL_SCANCODE_RSHIFT];
+            float speedMultiplier = isSprinting ? 2.0f : 1.0f;
 
-            camera.processKeyboard(deltaFront, deltaRight, deltaUp);
+            if (keyState[SDL_SCANCODE_W]) deltaFront += speedMultiplier;
+            if (keyState[SDL_SCANCODE_S]) deltaFront -= speedMultiplier;
+            if (keyState[SDL_SCANCODE_D]) deltaRight += speedMultiplier;
+            if (keyState[SDL_SCANCODE_A]) deltaRight -= speedMultiplier;
+
+            if (currentGameMode == GameMode::SPECTATOR) {
+                // Spectator: SPACE/CTRL for up/down
+                if (keyState[SDL_SCANCODE_SPACE]) deltaUp += 1.0f;
+                if (keyState[SDL_SCANCODE_LCTRL] || keyState[SDL_SCANCODE_RCTRL]) deltaUp -= 1.0f;
+            }
+            else {
+                // Survival: SPACE to jump
+                if (keyState[SDL_SCANCODE_SPACE]) jump = true;
+            }
+
+            camera.processKeyboard(deltaFront, deltaRight, deltaUp, jump);
+
+            // Physics update (survival mode only)
+            camera.update(deltaTime, &chunkManager);
 
             // Update chunks based on player position
             chunkManager.update(camera.x, camera.z);

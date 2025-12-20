@@ -1,29 +1,13 @@
 #include "TerrainGenerator.h"
-#include "PerlinNoise.h"
+#include "Noise.h"
 #include "Chunk.h"
 #include "Block.h"
 #include <iostream>
 #include <cmath>
-#include <algorithm> // for std::max/std::min
+#include <algorithm>
 
 // Same seed = same world
-static PerlinNoise perlin(12345);
-
-// Helper 3D octave noise function
-static float octaveNoise3D(float x, float y, float z, int octaves, float persistence) {
-    float total = 0.0f;
-    float frequency = 1.0f;
-    float amplitude = 1.0f;
-    float maxValue = 0.0f;
-
-    for (int i = 0; i < octaves; i++) {
-        total += perlin.noise(x * frequency, y * frequency, z * frequency) * amplitude;
-        maxValue += amplitude;
-        amplitude *= persistence;
-        frequency *= 2.0f;
-    }
-    return total / maxValue;
-}
+static Noise noise(12345);
 
 void TerrainGenerator::generateFlatTerrain(Chunk& chunk) {
     int chunkWorldX = chunk.chunkX * CHUNK_SIZE_X;
@@ -31,20 +15,18 @@ void TerrainGenerator::generateFlatTerrain(Chunk& chunk) {
 
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-
             float worldX = static_cast<float>(chunkWorldX + x);
             float worldZ = static_cast<float>(chunkWorldZ + z);
 
             // =====================
             // HEIGHT MAP: hills & mountains
             // =====================
-            float hillNoise = octaveNoise3D(worldX * 0.005f, 0.0f, worldZ * 0.005f, 4, 0.5f);
-            float mountainNoise = octaveNoise3D(worldX * 0.001f, 0.0f, worldZ * 0.001f, 6, 0.4f);
+            float hillNoise = noise.perlinOctave2D(worldX * 0.005f, worldZ * 0.005f, 3, 0.5f);  // 4 -> 3
+            float mountainNoise = noise.perlinOctave2D(worldX * 0.001f, worldZ * 0.001f, 4, 0.4f);  // 6 -> 4
 
             int baseHeight = 12;
-            int hillHeight = static_cast<int>((hillNoise + 1.0f) * 8.0f);       // small hills
-            int mountainHeight = static_cast<int>((mountainNoise + 1.0f) * 40.0f); // tall peaks
-
+            int hillHeight = static_cast<int>((hillNoise + 1.0f) * 8.0f);
+            int mountainHeight = static_cast<int>((mountainNoise + 1.0f) * 40.0f);
             int surfaceHeight = baseHeight + hillHeight + mountainHeight;
             surfaceHeight = std::max(1, std::min(surfaceHeight, CHUNK_SIZE_Y - 1));
 
@@ -61,34 +43,58 @@ void TerrainGenerator::generateFlatTerrain(Chunk& chunk) {
             }
 
             // =====================
-            // CAVE SYSTEM
+            // CAVE SYSTEM - Using Simplex & Worley
             // =====================
             for (int y = 2; y <= surfaceHeight; y++) {
                 float wx = worldX * 0.08f;
                 float wy = static_cast<float>(y) * 0.08f;
                 float wz = worldZ * 0.08f;
 
-                // Windy tunnels
-                float tunnelNoise = octaveNoise3D(wx + 200.0f, wy, wz + 200.0f, 3, 0.6f);
-                // Large caverns
-                float cavernNoise = octaveNoise3D(wx * 0.4f + 500.0f, wy * 0.5f, wz * 0.4f + 500.0f, 2, 0.5f);
-                // Tiny noisy gaps
-                float microNoise = octaveNoise3D(wx * 3.0f, wy * 1.5f, wz * 3.0f, 1, 0.5f);
+                // RAVINES - Large dramatic surface openings (2D noise, ignores Y)
+                float ravineNoise = noise.perlinOctave2D(worldX * 0.02f, worldZ * 0.02f, 2, 0.5f);
+                float ravineDepth = noise.perlinOctave2D(worldX * 0.015f + 500.0f, worldZ * 0.015f + 500.0f, 1, 0.5f);
 
-                // Depth bias: more caves underground
+                // Ravine carves from surface down to a certain depth
+                int ravineBottomY = surfaceHeight - static_cast<int>((ravineDepth + 1.0f) * 20.0f);  // 0-40 blocks deep
+                bool carveRavine = (ravineNoise > 0.6f) && (y > ravineBottomY) && (y < surfaceHeight);
+
+                // SPAGHETTI CAVES (winding tunnels)
+                float spaghetti1 = noise.simplexOctave3D(wx, wy, wz, 2, 0.6f);
+                float spaghetti2 = noise.simplexOctave3D(wx + 200.0f, wy, wz + 200.0f, 2, 0.6f);
+                float spaghettiCombined = std::sqrt(spaghetti1 * spaghetti1 + spaghetti2 * spaghetti2);
+
+                // Depth bias
                 float depth = static_cast<float>(y) / static_cast<float>(surfaceHeight);
                 float depthBias = 1.0f - depth;
 
-                bool carveTunnel = tunnelNoise > (0.6f - depthBias * 0.25f);
-                bool carveCavern = cavernNoise > 0.75f;
-                bool carveMicro = microNoise > 0.85f;
+                // Surface distance
+                float surfaceDistance = static_cast<float>(surfaceHeight - y);
+                float surfaceProtection = std::min(1.0f, surfaceDistance / 8.0f);
 
-                if (carveTunnel || carveCavern || carveMicro)
+                // SPAGHETTI: Can create natural entrances
+                bool carveSpaghetti = spaghettiCombined < (0.28f - depthBias * 0.08f) * (0.4f + surfaceProtection * 0.6f);
+
+                // CHEESE CAVES - only deep
+                bool carveCheese = false;
+                if (y < surfaceHeight - 15) {
+                    float cheeseCave = noise.worley3D(wx * 0.4f, wy * 0.5f, wz * 0.4f);
+                    carveCheese = (cheeseCave < 0.4f);
+                }
+
+                // MICRO CAVES - only below surface
+                bool carveMicro = false;
+                if (y < surfaceHeight - 3) {
+                    float microNoise = noise.simplex3D(wx * 2.0f, wy * 1.0f, wz * 2.0f);
+                    carveMicro = microNoise > (0.9f - depthBias * 0.05f);
+                }
+
+                if (carveRavine || carveSpaghetti || carveCheese || carveMicro) {
                     chunk.setBlock(x, y, z, BlockType::AIR);
+                }
             }
         }
     }
 
-    std::cout << "Terrain with hills, mountains, and varied caves generated for chunk ("
+    std::cout << "Terrain with hills, mountains, and Minecraft-style caves generated for chunk ("
         << chunk.chunkX << ", " << chunk.chunkZ << ")\n";
 }

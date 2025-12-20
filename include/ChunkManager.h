@@ -6,6 +6,9 @@
 #include <map>
 #include <vector>
 #include <utility>
+#include <thread>
+#include <mutex>
+#include <queue>
 
 class ChunkManager {
 public:
@@ -18,6 +21,8 @@ public:
 
     int getRenderDistance() const { return renderDistance; }
 
+    Block* getBlockAt(int worldX, int worldY, int worldZ);
+
 private:
     int renderDistance;
     std::map<std::pair<int, int>, Chunk*> chunks;
@@ -25,22 +30,29 @@ private:
     int lastPlayerChunkX;
     int lastPlayerChunkZ;
 
-    // --- New members for radius-by-radius incremental loading ---
+    // Ring-based loading
     std::vector<std::vector<std::pair<int, int>>> chunkLoadRings;
-    size_t currentRing = 0;
-    size_t ringIndex = 0;
+    int currentRing;
+    size_t ringIndex;
 
-    // --- Internal helper functions ---
+    // Async generation
+    std::queue<std::pair<int, int>> generationQueue;
+    std::queue<Chunk*> readyChunks;
+    std::mutex queueMutex;
+    std::mutex chunksMutex;
+    std::thread* generationThread;
+    bool shouldStopGeneration;
+
+    void generationWorker();
+    void processReadyChunks();
+
     std::pair<int, int> worldToChunkCoords(float worldX, float worldZ);
-    void loadChunksAroundPlayer(int playerChunkX, int playerChunkZ); // optional, still can keep
+    void prepareChunkLoadRings(int playerChunkX, int playerChunkZ);
     void unloadDistantChunks(int playerChunkX, int playerChunkZ);
     bool isChunkLoaded(int chunkX, int chunkZ);
     void loadChunk(int chunkX, int chunkZ);
     void unloadChunk(int chunkX, int chunkZ);
     void linkChunkNeighbors(int chunkX, int chunkZ);
-
-    // New helper to prepare chunk rings
-    void prepareChunkLoadRings(int playerChunkX, int playerChunkZ);
 };
 
 #endif
