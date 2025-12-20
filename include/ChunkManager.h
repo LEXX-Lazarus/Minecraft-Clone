@@ -9,6 +9,7 @@
 #include <thread>
 #include <mutex>
 #include <queue>
+#include <memory> // for std::unique_ptr
 
 class ChunkManager {
 public:
@@ -40,7 +41,7 @@ private:
     std::queue<Chunk*> readyChunks;
     std::mutex queueMutex;
     std::mutex chunksMutex;
-    std::thread* generationThread;
+    std::unique_ptr<std::thread> generationThread; // <-- changed to unique_ptr
     bool shouldStopGeneration;
 
     void generationWorker();
