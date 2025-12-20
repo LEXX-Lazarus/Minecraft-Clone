@@ -35,6 +35,8 @@ set(SOURCES
     src/GUI/GUI.cpp
     src/GUI/DebugOverlay.cpp
     src/Chunk.cpp
+    src/BlockRegistry.cpp
+    src/TerrainGenerator.cpp
 )
 
 # Create executable

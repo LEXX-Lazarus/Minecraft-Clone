@@ -14,7 +14,9 @@ struct Block {
     Block() : type(BlockType::AIR) {}
     Block(BlockType t) : type(t) {}
 
-    bool isAir() const { return type == BlockType::AIR; }
+    bool isAir() const {
+        return type == BlockType::AIR;
+    }
 };
 
 #endif

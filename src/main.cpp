@@ -23,6 +23,7 @@
 #include "GUI/GUI.h"
 #include "GUI/DebugOverlay.h"
 #include "Chunk.h"
+#include "TerrainGenerator.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -130,13 +131,14 @@ int main(int argc, char* argv[]) {
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
     Texture grassTexture("assets/textures/GrassBlock.png");
+    Texture dirtTexture("assets/textures/DirtBlock.png");
 
     // Camera
-    Camera camera(0.0f, 1.0f, 0.0f);
+    Camera camera(0.0f, 10.0f, 0.0f);
 
     // Create and generate chunk
-    Chunk chunk(0, 0);  // Chunk at world position (0, 0)
-    chunk.generate();
+    Chunk chunk(0, 0);
+    TerrainGenerator::generateFlatTerrain(chunk);
     chunk.buildMesh();
 
     bool running = true;
@@ -236,7 +238,13 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
-        chunk.render();
+        // Render grass blocks
+        grassTexture.bind();
+        chunk.renderType(BlockType::GRASS);
+
+        // Render dirt blocks
+        dirtTexture.bind();
+        chunk.renderType(BlockType::DIRT);
 
         // Render debug overlay (outputs to console)
         debugOverlay.render(window.getWidth(), window.getHeight(),

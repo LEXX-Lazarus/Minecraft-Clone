@@ -3,7 +3,7 @@
 #include <iostream>
 
 Chunk::Chunk(int chunkX, int chunkZ)
-    : chunkX(chunkX), chunkZ(chunkZ), VAO(0), VBO(0), EBO(0), indexCount(0) {
+    : chunkX(chunkX), chunkZ(chunkZ) {
     // Initialize all blocks as air
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -15,9 +15,13 @@ Chunk::Chunk(int chunkX, int chunkZ)
 }
 
 Chunk::~Chunk() {
-    if (VAO) glDeleteVertexArrays(1, &VAO);
-    if (VBO) glDeleteBuffers(1, &VBO);
-    if (EBO) glDeleteBuffers(1, &EBO);
+    // Clean up all meshes
+    for (auto& pair : meshes) {
+        MeshData& mesh = pair.second;
+        if (mesh.VAO) glDeleteVertexArrays(1, &mesh.VAO);
+        if (mesh.VBO) glDeleteBuffers(1, &mesh.VBO);
+        if (mesh.EBO) glDeleteBuffers(1, &mesh.EBO);
+    }
 }
 
 Block Chunk::getBlock(int x, int y, int z) const {
@@ -34,30 +38,26 @@ void Chunk::setBlock(int x, int y, int z, BlockType type) {
     blocks[x][y][z] = Block(type);
 }
 
-void Chunk::generate() {
-    // Generate flat terrain - all grass blocks at y=0
-    for (int x = 0; x < CHUNK_SIZE_X; x++) {
-        for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-            setBlock(x, 0, z, BlockType::GRASS);
-        }
-    }
-
-    std::cout << "Chunk (" << chunkX << ", " << chunkZ << ") generated" << std::endl;
+void Chunk::buildMesh() {
+    // Build separate mesh for each block type
+    buildMeshForType(BlockType::GRASS);
+    buildMeshForType(BlockType::DIRT);
+    buildMeshForType(BlockType::STONE);
 }
 
-void Chunk::buildMesh() {
+void Chunk::buildMeshForType(BlockType targetType) {
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
-
     unsigned int vertexCount = 0;
 
-    // Iterate through all blocks in the chunk
+    // Only process blocks of the target type
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                 Block block = getBlock(x, y, z);
 
-                if (block.isAir()) continue;
+                // Skip if not the type we're building mesh for
+                if (block.isAir() || block.type != targetType) continue;
 
                 // World position of this block
                 float worldX = chunkX * CHUNK_SIZE_X + x;
@@ -94,7 +94,7 @@ void Chunk::buildMesh() {
                     vertexCount += 4;
                 }
 
-                // South face (faces +Z direction) - CHECK z-1 since Z is negated
+                // South face (faces +Z direction)
                 if (getBlock(x, y, z - 1).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,
@@ -109,7 +109,7 @@ void Chunk::buildMesh() {
                     vertexCount += 4;
                 }
 
-                // North face (faces -Z direction) - CHECK z+1 since Z is negated
+                // North face (faces -Z direction)
                 if (getBlock(x, y, z + 1).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,
@@ -157,34 +157,29 @@ void Chunk::buildMesh() {
         }
     }
 
-    indexCount = indices.size();
-
-    if (indexCount == 0) {
-        std::cout << "Chunk (" << chunkX << ", " << chunkZ << ") has no visible faces" << std::endl;
-        return;
+    // Only create mesh if there are vertices
+    if (indices.size() > 0) {
+        MeshData mesh;
+        mesh.indexCount = indices.size();
+        setupMesh(mesh, vertices, indices);
+        meshes[targetType] = mesh;
+        std::cout << "Built mesh for BlockType " << (int)targetType << ": "
+            << mesh.indexCount << " indices" << std::endl;
     }
-
-    setupMesh();
-
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
-
-    std::cout << "Chunk (" << chunkX << ", " << chunkZ << ") mesh built: "
-        << vertexCount << " vertices, " << indexCount << " indices" << std::endl;
 }
 
-void Chunk::setupMesh() {
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
+void Chunk::setupMesh(MeshData& mesh, const std::vector<float>& vertices, const std::vector<unsigned int>& indices) {
+    glGenVertexArrays(1, &mesh.VAO);
+    glGenBuffers(1, &mesh.VBO);
+    glGenBuffers(1, &mesh.EBO);
 
-    glBindVertexArray(VAO);
+    glBindVertexArray(mesh.VAO);
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBindBuffer(GL_ARRAY_BUFFER, mesh.VBO);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
     // Position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
@@ -198,9 +193,25 @@ void Chunk::setupMesh() {
 }
 
 void Chunk::render() {
-    if (indexCount == 0) return;
+    // Render all block types (used if you just want to draw everything with one texture)
+    for (auto& pair : meshes) {
+        MeshData& mesh = pair.second;
+        if (mesh.indexCount == 0) continue;
 
-    glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(mesh.VAO);
+        glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
+        glBindVertexArray(0);
+    }
+}
+
+void Chunk::renderType(BlockType type) {
+    // Render only blocks of a specific type
+    if (meshes.find(type) == meshes.end()) return;
+
+    MeshData& mesh = meshes[type];
+    if (mesh.indexCount == 0) return;
+
+    glBindVertexArray(mesh.VAO);
+    glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
