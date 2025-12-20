@@ -37,32 +37,45 @@ Block Chunk::getBlock(int x, int y, int z) const {
 }
 
 Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
-    // Convert world coordinates to local chunk coordinates
-    int localX = worldX - (chunkX * CHUNK_SIZE_X);
-    int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
+    // Check Y bounds first (no neighbors in Y direction)
+    if (worldY < 0 || worldY >= CHUNK_SIZE_Y) {
+        return Block(BlockType::AIR);
+    }
 
-    // If within this chunk, return directly
-    if (localX >= 0 && localX < CHUNK_SIZE_X &&
-        localZ >= 0 && localZ < CHUNK_SIZE_Z &&
-        worldY >= 0 && worldY < CHUNK_SIZE_Y) {
+    // Calculate which chunk this world position belongs to
+    int targetChunkX = worldX / CHUNK_SIZE_X;
+    if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) targetChunkX--;
+
+    int targetChunkZ = worldZ / CHUNK_SIZE_Z;
+    if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) targetChunkZ--;
+
+    // If it's in this chunk, return directly
+    if (targetChunkX == chunkX && targetChunkZ == chunkZ) {
+        int localX = worldX - (chunkX * CHUNK_SIZE_X);
+        int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
         return blocks[localX][worldY][localZ];
     }
 
-    // Check neighboring chunks
-    if (localX < 0 && neighbors[3]) { // West
-        return neighbors[3]->getBlockWorld(worldX, worldY, worldZ);
-    }
-    if (localX >= CHUNK_SIZE_X && neighbors[2]) { // East
-        return neighbors[2]->getBlockWorld(worldX, worldY, worldZ);
-    }
-    if (localZ < 0 && neighbors[1]) { // South
-        return neighbors[1]->getBlockWorld(worldX, worldY, worldZ);
-    }
-    if (localZ >= CHUNK_SIZE_Z && neighbors[0]) { // North
+    // Check which neighbor we need
+    int deltaX = targetChunkX - chunkX;
+    int deltaZ = targetChunkZ - chunkZ;
+
+    // Direct neighbors only
+    if (deltaX == 0 && deltaZ == 1 && neighbors[0]) {  // North
         return neighbors[0]->getBlockWorld(worldX, worldY, worldZ);
     }
+    if (deltaX == 0 && deltaZ == -1 && neighbors[1]) {  // South
+        return neighbors[1]->getBlockWorld(worldX, worldY, worldZ);
+    }
+    if (deltaX == 1 && deltaZ == 0 && neighbors[2]) {  // East
+        return neighbors[2]->getBlockWorld(worldX, worldY, worldZ);
+    }
+    if (deltaX == -1 && deltaZ == 0 && neighbors[3]) {  // West
+        return neighbors[3]->getBlockWorld(worldX, worldY, worldZ);
+    }
 
-    return Block(BlockType::AIR);
+    // Neighbor not loaded -> treat as solid so faces are not generated
+    return Block(BlockType::STONE);
 }
 
 void Chunk::setBlock(int x, int y, int z, BlockType type) {

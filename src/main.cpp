@@ -133,6 +133,7 @@ int main(int argc, char* argv[]) {
     Shader shader(vertexShaderSource, fragmentShaderSource);
     Texture grassTexture("assets/textures/GrassBlock.png");
     Texture dirtTexture("assets/textures/DirtBlock.png");
+    Texture stoneTexture("assets/textures/StoneBlock.png");
 
     // Camera
     Camera camera(0.0f, 10.0f, 0.0f);
@@ -248,6 +249,10 @@ int main(int argc, char* argv[]) {
         // Render dirt blocks
         dirtTexture.bind();
         chunkManager.renderType(BlockType::DIRT);
+
+        // Render stone blocks
+        stoneTexture.bind();
+        chunkManager.renderType(BlockType::STONE);
 
         // Render debug overlay (outputs to console)
         debugOverlay.render(window.getWidth(), window.getHeight(),

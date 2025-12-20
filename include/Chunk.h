@@ -14,6 +14,7 @@ constexpr int MAX_HEIGHT = 1000;
 
 class Chunk {
 public:
+    int chunkX, chunkZ;
     Chunk(int chunkX, int chunkZ);
     ~Chunk();
 
@@ -27,9 +28,8 @@ public:
     void renderType(BlockType type);
 
 private:
-    int chunkX, chunkZ;
     Block blocks[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
-    Chunk* neighbors[4];  // NEW: 0=North, 1=South, 2=East, 3=West
+    Chunk* neighbors[4];  //0=North, 1=South, 2=East, 3=West
 
     struct MeshData {
         unsigned int VAO = 0;

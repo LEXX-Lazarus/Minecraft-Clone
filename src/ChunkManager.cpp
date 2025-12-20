@@ -116,18 +116,17 @@ void ChunkManager::loadChunk(int chunkX, int chunkZ) {
     // Build mesh after neighbors are linked
     chunk->buildMesh();
 
-    // IMPORTANT: Rebuild neighbor meshes so they can see this chunk's blocks
-    auto northIt = chunks.find({ chunkX, chunkZ + 1 });
-    if (northIt != chunks.end()) northIt->second->buildMesh();
+    // Rebuild ALL surrounding chunks (8 neighbors) so they can see this chunk's blocks
+    for (int dx = -1; dx <= 1; dx++) {
+        for (int dz = -1; dz <= 1; dz++) {
+            if (dx == 0 && dz == 0) continue;  // Skip the chunk itself
 
-    auto southIt = chunks.find({ chunkX, chunkZ - 1 });
-    if (southIt != chunks.end()) southIt->second->buildMesh();
-
-    auto eastIt = chunks.find({ chunkX + 1, chunkZ });
-    if (eastIt != chunks.end()) eastIt->second->buildMesh();
-
-    auto westIt = chunks.find({ chunkX - 1, chunkZ });
-    if (westIt != chunks.end()) westIt->second->buildMesh();
+            auto neighborIt = chunks.find({ chunkX + dx, chunkZ + dz });
+            if (neighborIt != chunks.end()) {
+                neighborIt->second->buildMesh();
+            }
+        }
+    }
 }
 
 void ChunkManager::unloadChunk(int chunkX, int chunkZ) {

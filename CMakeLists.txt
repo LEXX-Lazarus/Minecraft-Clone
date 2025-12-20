@@ -37,6 +37,7 @@ set(SOURCES
     src/Chunk.cpp
     src/ChunkManager.cpp
     src/TerrainGenerator.cpp
+    src/PerlinNoise.cpp
 )
 
 # Create executable
