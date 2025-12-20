@@ -136,7 +136,7 @@ int main(int argc, char* argv[]) {
     Texture stoneTexture("assets/textures/StoneBlock.png");
 
     // Camera
-    Camera camera(0.0f, 10.0f, 0.0f);
+    Camera camera(0.0f, 60.0f, 0.0f);
 
     // Create chunk manager with 12 chunk render distance
     ChunkManager chunkManager(12);
