@@ -1,17 +1,13 @@
-#ifndef PERLIN_NOISE_H
-#define PERLIN_NOISE_H
-
+#pragma once
 #include <vector>
 #include <cstdint>
 
 class PerlinNoise {
 public:
-    PerlinNoise(uint32_t seed = 0);
+    PerlinNoise(uint32_t seed);
 
-    // Get noise value at coordinates (returns value between -1 and 1)
-    float noise(float x, float y) const;
-
-    // Get octave noise (multiple layers for more natural look)
+    float noise(float x, float y) const;          // 2D noise
+    float noise(float x, float y, float z) const; // 3D noise
     float octaveNoise(float x, float y, int octaves, float persistence) const;
 
 private:
@@ -20,6 +16,5 @@ private:
     float fade(float t) const;
     float lerp(float t, float a, float b) const;
     float grad(int hash, float x, float y) const;
+    float grad(int hash, float x, float y, float z) const; // 3D gradient
 };
-
-#endif
