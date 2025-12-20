@@ -24,6 +24,7 @@
 #include "GUI/DebugOverlay.h"
 #include "Chunk.h"
 #include "TerrainGenerator.h"
+#include "ChunkManager.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -136,10 +137,9 @@ int main(int argc, char* argv[]) {
     // Camera
     Camera camera(0.0f, 10.0f, 0.0f);
 
-    // Create and generate chunk
-    Chunk chunk(0, 0);
-    TerrainGenerator::generateFlatTerrain(chunk);
-    chunk.buildMesh();
+    // Create chunk manager with 12 chunk render distance
+    ChunkManager chunkManager(12);
+    chunkManager.update(camera.x, camera.z);  // Initial load around spawn
 
     bool running = true;
     SDL_Event event;
@@ -205,6 +205,9 @@ int main(int argc, char* argv[]) {
             if (keyState[SDL_SCANCODE_LSHIFT]) deltaUp -= 1.0f;
 
             camera.processKeyboard(deltaFront, deltaRight, deltaUp);
+
+            // Update chunks based on player position
+            chunkManager.update(camera.x, camera.z);
         }
 
         glClearColor(0.5f, 0.7f, 1.0f, 1.0f);
@@ -240,11 +243,11 @@ int main(int argc, char* argv[]) {
 
         // Render grass blocks
         grassTexture.bind();
-        chunk.renderType(BlockType::GRASS);
+        chunkManager.renderType(BlockType::GRASS);
 
         // Render dirt blocks
         dirtTexture.bind();
-        chunk.renderType(BlockType::DIRT);
+        chunkManager.renderType(BlockType::DIRT);
 
         // Render debug overlay (outputs to console)
         debugOverlay.render(window.getWidth(), window.getHeight(),

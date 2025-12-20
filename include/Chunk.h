@@ -18,14 +18,18 @@ public:
     ~Chunk();
 
     Block getBlock(int x, int y, int z) const;
+    Block getBlockWorld(int worldX, int worldY, int worldZ) const;  // NEW: cross-chunk lookup
     void setBlock(int x, int y, int z, BlockType type);
+    void setNeighbor(int direction, Chunk* neighbor);  // NEW: link neighbors
+
     void buildMesh();
     void render();
-    void renderType(BlockType type);  // NEW: render specific block type
+    void renderType(BlockType type);
 
 private:
     int chunkX, chunkZ;
     Block blocks[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
+    Chunk* neighbors[4];  // NEW: 0=North, 1=South, 2=East, 3=West
 
     struct MeshData {
         unsigned int VAO = 0;
@@ -34,10 +38,10 @@ private:
         unsigned int indexCount = 0;
     };
 
-    std::map<BlockType, MeshData> meshes;  // NEW: separate mesh per block type
+    std::map<BlockType, MeshData> meshes;
 
     void setupMesh(MeshData& mesh, const std::vector<float>& vertices, const std::vector<unsigned int>& indices);
-    void buildMeshForType(BlockType type);  // NEW: build mesh for one type
+    void buildMeshForType(BlockType type);
 };
 
 #endif

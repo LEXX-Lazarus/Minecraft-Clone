@@ -4,6 +4,11 @@
 
 Chunk::Chunk(int chunkX, int chunkZ)
     : chunkX(chunkX), chunkZ(chunkZ) {
+    // Initialize neighbors to null
+    for (int i = 0; i < 4; i++) {
+        neighbors[i] = nullptr;
+    }
+
     // Initialize all blocks as air
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -31,11 +36,46 @@ Block Chunk::getBlock(int x, int y, int z) const {
     return blocks[x][y][z];
 }
 
+Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
+    // Convert world coordinates to local chunk coordinates
+    int localX = worldX - (chunkX * CHUNK_SIZE_X);
+    int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
+
+    // If within this chunk, return directly
+    if (localX >= 0 && localX < CHUNK_SIZE_X &&
+        localZ >= 0 && localZ < CHUNK_SIZE_Z &&
+        worldY >= 0 && worldY < CHUNK_SIZE_Y) {
+        return blocks[localX][worldY][localZ];
+    }
+
+    // Check neighboring chunks
+    if (localX < 0 && neighbors[3]) { // West
+        return neighbors[3]->getBlockWorld(worldX, worldY, worldZ);
+    }
+    if (localX >= CHUNK_SIZE_X && neighbors[2]) { // East
+        return neighbors[2]->getBlockWorld(worldX, worldY, worldZ);
+    }
+    if (localZ < 0 && neighbors[1]) { // South
+        return neighbors[1]->getBlockWorld(worldX, worldY, worldZ);
+    }
+    if (localZ >= CHUNK_SIZE_Z && neighbors[0]) { // North
+        return neighbors[0]->getBlockWorld(worldX, worldY, worldZ);
+    }
+
+    return Block(BlockType::AIR);
+}
+
 void Chunk::setBlock(int x, int y, int z, BlockType type) {
     if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
         return;
     }
     blocks[x][y][z] = Block(type);
+}
+
+void Chunk::setNeighbor(int direction, Chunk* neighbor) {
+    if (direction >= 0 && direction < 4) {
+        neighbors[direction] = neighbor;
+    }
 }
 
 void Chunk::buildMesh() {
@@ -50,22 +90,25 @@ void Chunk::buildMeshForType(BlockType targetType) {
     std::vector<unsigned int> indices;
     unsigned int vertexCount = 0;
 
-    // Only process blocks of the target type
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                 Block block = getBlock(x, y, z);
 
-                // Skip if not the type we're building mesh for
                 if (block.isAir() || block.type != targetType) continue;
 
-                // World position of this block
+                // World position of this block for rendering
                 float worldX = chunkX * CHUNK_SIZE_X + x;
                 float worldY = y;
                 float worldZ = -(chunkZ * CHUNK_SIZE_Z + z);
 
-                // Top face (y+1)
-                if (getBlock(x, y + 1, z).isAir()) {
+                // World block coordinates for neighbor checking
+                int blockWorldX = chunkX * CHUNK_SIZE_X + x;
+                int blockWorldY = y;
+                int blockWorldZ = chunkZ * CHUNK_SIZE_Z + z;
+
+                // Top face
+                if (getBlockWorld(blockWorldX, blockWorldY + 1, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,
                         worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,
@@ -79,8 +122,8 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // Bottom face (y-1)
-                if (getBlock(x, y - 1, z).isAir()) {
+                // Bottom face
+                if (getBlockWorld(blockWorldX, blockWorldY - 1, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.25f, 0.0f,
                         worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.5f,  0.0f,
@@ -94,8 +137,8 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // South face (faces +Z direction)
-                if (getBlock(x, y, z - 1).isAir()) {
+                // South face
+                if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ - 1).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,
                         worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,
@@ -109,8 +152,8 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // North face (faces -Z direction)
-                if (getBlock(x, y, z + 1).isAir()) {
+                // North face
+                if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ + 1).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,
                         worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   1.0f,  0.333f,
@@ -124,8 +167,8 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // East face (x+1)
-                if (getBlock(x + 1, y, z).isAir()) {
+                // East face
+                if (getBlockWorld(blockWorldX + 1, blockWorldY, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,
                         worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,
@@ -139,8 +182,8 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // West face (x-1)
-                if (getBlock(x - 1, y, z).isAir()) {
+                // West face
+                if (getBlockWorld(blockWorldX - 1, blockWorldY, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
                         worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.0f,  0.333f,
                         worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,
@@ -157,14 +200,11 @@ void Chunk::buildMeshForType(BlockType targetType) {
         }
     }
 
-    // Only create mesh if there are vertices
     if (indices.size() > 0) {
         MeshData mesh;
         mesh.indexCount = indices.size();
         setupMesh(mesh, vertices, indices);
         meshes[targetType] = mesh;
-        std::cout << "Built mesh for BlockType " << (int)targetType << ": "
-            << mesh.indexCount << " indices" << std::endl;
     }
 }
 
@@ -181,11 +221,8 @@ void Chunk::setupMesh(MeshData& mesh, const std::vector<float>& vertices, const 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    // Position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
-    // Texture coord attribute
     glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
@@ -193,7 +230,6 @@ void Chunk::setupMesh(MeshData& mesh, const std::vector<float>& vertices, const 
 }
 
 void Chunk::render() {
-    // Render all block types (used if you just want to draw everything with one texture)
     for (auto& pair : meshes) {
         MeshData& mesh = pair.second;
         if (mesh.indexCount == 0) continue;
@@ -205,7 +241,6 @@ void Chunk::render() {
 }
 
 void Chunk::renderType(BlockType type) {
-    // Render only blocks of a specific type
     if (meshes.find(type) == meshes.end()) return;
 
     MeshData& mesh = meshes[type];
