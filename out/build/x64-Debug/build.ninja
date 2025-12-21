@@ -121,7 +121,25 @@ build CMakeFiles\MinecraftClone.dir\src\GUI\PauseMenu.cpp.obj: CXX_COMPILER__Min
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
   TARGET_PDB = MinecraftClone.pdb
 
+build CMakeFiles\MinecraftClone.dir\src\GUI\Crosshair.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\GUI\Crosshair.cpp || cmake_object_order_depends_target_MinecraftClone
+  CONFIG = Debug
+  FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  OBJECT_DIR = CMakeFiles\MinecraftClone.dir
+  OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\GUI
+  TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
+  TARGET_PDB = MinecraftClone.pdb
+
 build CMakeFiles\MinecraftClone.dir\src\GUI\DebugOverlay.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\GUI\DebugOverlay.cpp || cmake_object_order_depends_target_MinecraftClone
+  CONFIG = Debug
+  FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  OBJECT_DIR = CMakeFiles\MinecraftClone.dir
+  OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\GUI
+  TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
+  TARGET_PDB = MinecraftClone.pdb
+
+build CMakeFiles\MinecraftClone.dir\src\GUI\BlockOutline.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\GUI\BlockOutline.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
   INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
@@ -183,7 +201,7 @@ build CMakeFiles\MinecraftClone.dir\external\glad\src\glad.c.obj: C_COMPILER__Mi
 #############################################
 # Link the executable MinecraftClone.exe
 
-build MinecraftClone.exe: CXX_EXECUTABLE_LINKER__MinecraftClone_Debug CMakeFiles\MinecraftClone.dir\src\main.cpp.obj CMakeFiles\MinecraftClone.dir\src\Camera.cpp.obj CMakeFiles\MinecraftClone.dir\src\Player.cpp.obj CMakeFiles\MinecraftClone.dir\src\Renderer.cpp.obj CMakeFiles\MinecraftClone.dir\src\Texture.cpp.obj CMakeFiles\MinecraftClone.dir\src\Shader.cpp.obj CMakeFiles\MinecraftClone.dir\src\Window.cpp.obj CMakeFiles\MinecraftClone.dir\src\GUI\PauseMenu.cpp.obj CMakeFiles\MinecraftClone.dir\src\GUI\DebugOverlay.cpp.obj CMakeFiles\MinecraftClone.dir\src\Chunk.cpp.obj CMakeFiles\MinecraftClone.dir\src\ChunkManager.cpp.obj CMakeFiles\MinecraftClone.dir\src\TerrainGenerator.cpp.obj CMakeFiles\MinecraftClone.dir\src\Noise.cpp.obj CMakeFiles\MinecraftClone.dir\external\glad\src\glad.c.obj | C$:\dev\libs\SDL3-3.2.28\lib\x64\SDL3.lib
+build MinecraftClone.exe: CXX_EXECUTABLE_LINKER__MinecraftClone_Debug CMakeFiles\MinecraftClone.dir\src\main.cpp.obj CMakeFiles\MinecraftClone.dir\src\Camera.cpp.obj CMakeFiles\MinecraftClone.dir\src\Player.cpp.obj CMakeFiles\MinecraftClone.dir\src\Renderer.cpp.obj CMakeFiles\MinecraftClone.dir\src\Texture.cpp.obj CMakeFiles\MinecraftClone.dir\src\Shader.cpp.obj CMakeFiles\MinecraftClone.dir\src\Window.cpp.obj CMakeFiles\MinecraftClone.dir\src\GUI\PauseMenu.cpp.obj CMakeFiles\MinecraftClone.dir\src\GUI\Crosshair.cpp.obj CMakeFiles\MinecraftClone.dir\src\GUI\DebugOverlay.cpp.obj CMakeFiles\MinecraftClone.dir\src\GUI\BlockOutline.cpp.obj CMakeFiles\MinecraftClone.dir\src\Chunk.cpp.obj CMakeFiles\MinecraftClone.dir\src\ChunkManager.cpp.obj CMakeFiles\MinecraftClone.dir\src\TerrainGenerator.cpp.obj CMakeFiles\MinecraftClone.dir\src\Noise.cpp.obj CMakeFiles\MinecraftClone.dir\external\glad\src\glad.c.obj | C$:\dev\libs\SDL3-3.2.28\lib\x64\SDL3.lib
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -MDd
   LINK_FLAGS = /machine:x64 /debug /INCREMENTAL /subsystem:console

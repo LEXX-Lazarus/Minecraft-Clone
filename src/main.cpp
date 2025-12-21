@@ -24,6 +24,8 @@
 #include "Window.h"
 #include "GUI/PauseMenu.h"
 #include "GUI/DebugOverlay.h"
+#include "GUI/Crosshair.h"
+//include "GUI/BlockOutline.h"
 #include "Chunk.h"
 #include "TerrainGenerator.h"
 #include "ChunkManager.h"
@@ -120,6 +122,13 @@ int main(int argc, char* argv[]) {
 
     DebugOverlay debugOverlay;
     debugOverlay.initialize();
+
+    Crosshair crosshair; 
+    crosshair.initialize();
+
+    //BlockOutline blockOutline;
+    //blockOutline.initialize();
+
 
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
@@ -257,6 +266,11 @@ int main(int argc, char* argv[]) {
 
         stoneTexture.bind();
         chunkManager.renderType(BlockType::STONE);
+
+        // Render crosshair (only when not paused)
+        if (!window.isPaused()) { 
+            crosshair.render(window.getWidth(), window.getHeight());
+        }
 
         debugOverlay.render(window.getWidth(), window.getHeight(),
             camera.x, camera.y, camera.z,

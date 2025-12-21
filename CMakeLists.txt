@@ -34,7 +34,9 @@ set(SOURCES
     src/Shader.cpp
     src/Window.cpp
     src/GUI/PauseMenu.cpp
+    src/GUI/Crosshair.cpp
     src/GUI/DebugOverlay.cpp
+    src/GUI/BlockOutline.cpp
     src/Chunk.cpp
     src/ChunkManager.cpp
     src/TerrainGenerator.cpp
