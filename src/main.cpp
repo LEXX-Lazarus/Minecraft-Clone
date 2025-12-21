@@ -5,6 +5,7 @@
 #include <vector>
 #include <cmath>
 #include <chrono>
+#include <thread>
 
 #define STB_IMAGE_IMPLEMENTATION
 #ifdef _MSC_VER
@@ -137,12 +138,43 @@ int main(int argc, char* argv[]) {
     Texture stoneTexture("assets/textures/StoneBlock.png");
 
     // Create Player and Camera
-    Player player(0.0f, 65.0f, 0.0f);
-    Camera camera(0.0f, 65.0f, 0.0f);
-    player.setGameMode(GameMode::SPECTATOR);
+    float spawnX = 0.0f;
+    float spawnZ = 0.0f;
+    float spawnY = 60.0f;  // Minimum spawn height
 
     ChunkManager chunkManager(12);
-    chunkManager.update(player.x, player.z);
+    chunkManager.update(spawnX, spawnZ);
+
+    // Wait a moment for chunks to generate
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    int blockX = static_cast<int>(std::round(spawnX));
+    int blockZ = static_cast<int>(std::round(-spawnZ));
+
+    int highestSolidY = -1;
+
+    // Scan from minimum spawn height up to max world height
+    for (int checkY = 60; checkY < 100; ++checkY) {
+        Block* block = chunkManager.getBlockAt(blockX, checkY, blockZ);
+        if (block) {
+            if (!block->isAir()) {
+                highestSolidY = checkY;
+            }
+            delete block;
+        }
+    }
+
+    if (highestSolidY >= 0) {
+        spawnY = static_cast<float>(highestSolidY) + 1.0f; // Spawn above the highest solid block
+    }
+    else {
+        spawnY = 61.0f; // Default if nothing found
+    }
+
+    Player player(spawnX, spawnY, spawnZ);
+    Camera camera(spawnX, spawnY, spawnZ);
+    player.setGameMode(GameMode::SURVIVAL);
+
 
     bool running = true;
     SDL_Event event;
