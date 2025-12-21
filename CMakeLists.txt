@@ -28,6 +28,7 @@ set(GLAD_SOURCES "external/glad/src/glad.c")
 set(SOURCES
     src/main.cpp
     src/Camera.cpp
+    src/Player.cpp
     src/Renderer.cpp
     src/Texture.cpp
     src/Shader.cpp

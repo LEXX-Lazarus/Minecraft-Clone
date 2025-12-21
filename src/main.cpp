@@ -9,13 +9,15 @@
 #define STB_IMAGE_IMPLEMENTATION
 #ifdef _MSC_VER
 #pragma warning(push)
-#pragma warning(disable: 26819) // Disable fallthrough warning
+#pragma warning(disable: 26819)
 #endif
 #include "stb_image.h"
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+
 #include "Camera.h"
+#include "Player.h"
 #include "Renderer.h"
 #include "Texture.h"
 #include "Shader.h"
@@ -25,11 +27,6 @@
 #include "Chunk.h"
 #include "TerrainGenerator.h"
 #include "ChunkManager.h"
-
-enum class GameMode {
-    SPECTATOR,
-    SURVIVAL
-};
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -65,13 +62,11 @@ void main()
 }
 )";
 
-// Create identity matrix
 void identityMatrix(float* mat) {
     for (int i = 0; i < 16; i++) mat[i] = 0.0f;
     mat[0] = mat[5] = mat[10] = mat[15] = 1.0f;
 }
 
-// Create perspective projection matrix
 void perspectiveMatrix(float* mat, float fov, float aspect, float near, float far) {
     identityMatrix(mat);
     float tanHalfFov = tan(fov / 2.0f);
@@ -83,25 +78,21 @@ void perspectiveMatrix(float* mat, float fov, float aspect, float near, float fa
     mat[15] = 0.0f;
 }
 
-// Create view matrix (lookAt)
 void lookAtMatrix(float* mat, float eyeX, float eyeY, float eyeZ,
     float centerX, float centerY, float centerZ,
     float upX, float upY, float upZ) {
-    // Calculate forward vector
     float fX = centerX - eyeX;
     float fY = centerY - eyeY;
     float fZ = centerZ - eyeZ;
     float fLen = sqrt(fX * fX + fY * fY + fZ * fZ);
     fX /= fLen; fY /= fLen; fZ /= fLen;
 
-    // Calculate right vector
     float rX = fY * upZ - fZ * upY;
     float rY = fZ * upX - fX * upZ;
     float rZ = fX * upY - fY * upX;
     float rLen = sqrt(rX * rX + rY * rY + rZ * rZ);
     rX /= rLen; rY /= rLen; rZ /= rLen;
 
-    // Calculate up vector
     float uX = rY * fZ - rZ * fY;
     float uY = rZ * fX - rX * fZ;
     float uZ = rX * fY - rY * fX;
@@ -124,15 +115,12 @@ int main(int argc, char* argv[]) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    // Initialize GUI
     GUI gui;
     gui.initialize();
 
-    // Initialize Debug Overlay
     DebugOverlay debugOverlay;
     debugOverlay.initialize();
 
-    // Capture mouse for FPS controls
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
@@ -140,31 +128,27 @@ int main(int argc, char* argv[]) {
     Texture dirtTexture("assets/textures/DirtBlock.png");
     Texture stoneTexture("assets/textures/StoneBlock.png");
 
-    // Camera
-    Camera camera(0.0f, 60.0f, 0.0f);
-    GameMode currentGameMode = GameMode::SPECTATOR;  // Start in spectator
-    camera.setGameMode(currentGameMode == GameMode::SPECTATOR);
+    // Create Player and Camera
+    Player player(0.0f, 80.0f, 0.0f);
+    Camera camera(0.0f, 80.0f, 0.0f);
+    player.setGameMode(GameMode::SPECTATOR);
 
-    // Create chunk manager with 12 chunk render distance
     ChunkManager chunkManager(12);
-    chunkManager.update(camera.x, camera.z);  // Initial load around spawn
+    chunkManager.update(player.x, player.z);
 
     bool running = true;
     SDL_Event event;
 
-    // FPS tracking
     auto lastTime = std::chrono::high_resolution_clock::now();
-    auto lastFrameTime = lastTime;  // ADD THIS for deltaTime
+    auto lastFrameTime = lastTime;
     int fpsFrameCount = 0;
     float fps = 0.0f;
 
     while (running) {
-        // Calculate delta time for physics
         auto currentFrameTime = std::chrono::high_resolution_clock::now();
         float deltaTime = std::chrono::duration<float>(currentFrameTime - lastFrameTime).count();
         lastFrameTime = currentFrameTime;
 
-        // Calculate FPS
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
         float fpsTime = std::chrono::duration<float>(currentTime - lastTime).count();
@@ -184,6 +168,15 @@ int main(int argc, char* argv[]) {
                 }
                 if (event.key.key == SDLK_F3) {
                     debugOverlay.toggle();
+                }
+                if (event.key.key == SDLK_F1) {
+                    GameMode newMode = (player.getGameMode() == GameMode::SPECTATOR)
+                        ? GameMode::SURVIVAL
+                        : GameMode::SPECTATOR;
+                    player.setGameMode(newMode);
+                    std::cout << "Switched to "
+                        << (newMode == GameMode::SPECTATOR ? "SPECTATOR" : "SURVIVAL")
+                        << " mode" << std::endl;
                 }
             }
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && window.isPaused()) {
@@ -206,63 +199,48 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // WASD movement (only when not paused)
         if (!window.isPaused()) {
             const bool* keyState = SDL_GetKeyboardState(nullptr);
             float deltaFront = 0.0f, deltaRight = 0.0f, deltaUp = 0.0f;
             bool jump = false;
+            bool sprint = false;
 
-            // Check if sprinting (SHIFT doubles speed)
-            bool isSprinting = keyState[SDL_SCANCODE_LSHIFT] || keyState[SDL_SCANCODE_RSHIFT];
-            float speedMultiplier = isSprinting ? 2.0f : 1.0f;
+            sprint = keyState[SDL_SCANCODE_LSHIFT] || keyState[SDL_SCANCODE_RSHIFT];
 
-            if (keyState[SDL_SCANCODE_W]) deltaFront += speedMultiplier;
-            if (keyState[SDL_SCANCODE_S]) deltaFront -= speedMultiplier;
-            if (keyState[SDL_SCANCODE_D]) deltaRight += speedMultiplier;
-            if (keyState[SDL_SCANCODE_A]) deltaRight -= speedMultiplier;
+            if (keyState[SDL_SCANCODE_W]) deltaFront += 1.0f;
+            if (keyState[SDL_SCANCODE_S]) deltaFront -= 1.0f;
+            if (keyState[SDL_SCANCODE_D]) deltaRight += 1.0f;
+            if (keyState[SDL_SCANCODE_A]) deltaRight -= 1.0f;
 
-            if (currentGameMode == GameMode::SPECTATOR) {
-                // Spectator: SPACE/CTRL for up/down
+            if (player.getGameMode() == GameMode::SPECTATOR) {
                 if (keyState[SDL_SCANCODE_SPACE]) deltaUp += 1.0f;
                 if (keyState[SDL_SCANCODE_LCTRL] || keyState[SDL_SCANCODE_RCTRL]) deltaUp -= 1.0f;
             }
             else {
-                // Survival: SPACE to jump
                 if (keyState[SDL_SCANCODE_SPACE]) jump = true;
             }
 
-            camera.processKeyboard(deltaFront, deltaRight, deltaUp, jump);
-
-            // Physics update (survival mode only)
-            camera.update(deltaTime, &chunkManager);
-
-            // Update chunks based on player position
-            chunkManager.update(camera.x, camera.z);
+            player.processInput(deltaFront, deltaRight, deltaUp, jump, sprint, camera);
+            player.update(deltaTime, &chunkManager, camera);
+            chunkManager.update(player.x, player.z);
         }
 
         glClearColor(0.5f, 0.7f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
-        grassTexture.bind();
 
-        // Create matrices
         float model[16], view[16], projection[16];
-
-        // Model matrix (identity - cube stays at 0,0,0)
         identityMatrix(model);
 
-        // View matrix (camera looking at front direction)
         lookAtMatrix(view,
             camera.x, camera.y, camera.z,
             camera.x + camera.frontX, camera.y + camera.frontY, camera.z + camera.frontZ,
             0.0f, 1.0f, 0.0f);
 
-        // Projection matrix - USE WINDOW DIMENSIONS
-        perspectiveMatrix(projection, 45.0f * 3.14159f / 180.0f,
-            (float)window.getWidth() / (float)window.getHeight(), 0.1f, 100.0f);
+        perspectiveMatrix(projection, 70.0f * 3.14159f / 180.0f,
+            (float)window.getWidth() / (float)window.getHeight(), 0.1f, 1000.0f);
 
-        // Set uniforms
         unsigned int modelLoc = glGetUniformLocation(shader.getID(), "model");
         unsigned int viewLoc = glGetUniformLocation(shader.getID(), "view");
         unsigned int projLoc = glGetUniformLocation(shader.getID(), "projection");
@@ -271,24 +249,19 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
-        // Render grass blocks
         grassTexture.bind();
         chunkManager.renderType(BlockType::GRASS);
 
-        // Render dirt blocks
         dirtTexture.bind();
         chunkManager.renderType(BlockType::DIRT);
 
-        // Render stone blocks
         stoneTexture.bind();
         chunkManager.renderType(BlockType::STONE);
 
-        // Render debug overlay (outputs to console)
         debugOverlay.render(window.getWidth(), window.getHeight(),
             camera.x, camera.y, camera.z,
             camera.yaw, fps);
 
-        // Draw pause menu overlay
         if (window.isPaused()) {
             gui.renderPauseMenu(window.getWidth(), window.getHeight());
         }
@@ -297,6 +270,5 @@ int main(int argc, char* argv[]) {
     }
 
     SDL_Quit();
-
     return 0;
 }
