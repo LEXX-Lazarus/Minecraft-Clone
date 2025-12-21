@@ -33,7 +33,7 @@ set(SOURCES
     src/Texture.cpp
     src/Shader.cpp
     src/Window.cpp
-    src/GUI/GUI.cpp
+    src/GUI/PauseMenu.cpp
     src/GUI/DebugOverlay.cpp
     src/Chunk.cpp
     src/ChunkManager.cpp

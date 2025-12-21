@@ -22,7 +22,7 @@
 #include "Texture.h"
 #include "Shader.h"
 #include "Window.h"
-#include "GUI/GUI.h"
+#include "GUI/PauseMenu.h"
 #include "GUI/DebugOverlay.h"
 #include "Chunk.h"
 #include "TerrainGenerator.h"
@@ -115,8 +115,8 @@ int main(int argc, char* argv[]) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    GUI gui;
-    gui.initialize();
+    PauseMenu pauseMenu;
+    pauseMenu.initialize();
 
     DebugOverlay debugOverlay;
     debugOverlay.initialize();
@@ -181,12 +181,12 @@ int main(int argc, char* argv[]) {
             }
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && window.isPaused()) {
                 int buttonID;
-                if (gui.isButtonClicked(event.button.x, event.button.y,
+                if (pauseMenu.isButtonClicked(event.button.x, event.button.y,
                     window.getWidth(), window.getHeight(), buttonID)) {
-                    if (buttonID == GUI::BUTTON_RESUME) {
+                    if (buttonID == PauseMenu::BUTTON_RESUME) {
                         window.togglePause();
                     }
-                    else if (buttonID == GUI::BUTTON_FULLSCREEN) {
+                    else if (buttonID == PauseMenu::BUTTON_FULLSCREEN) {
                         window.toggleFullscreen();
                     }
                 }
@@ -263,7 +263,7 @@ int main(int argc, char* argv[]) {
             camera.yaw, fps);
 
         if (window.isPaused()) {
-            gui.renderPauseMenu(window.getWidth(), window.getHeight());
+            pauseMenu.render(window.getWidth(), window.getHeight());
         }
 
         window.swapBuffers();
