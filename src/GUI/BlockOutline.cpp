@@ -159,7 +159,11 @@ void BlockOutline::render(
 ) {
     if (!raycastBlock(camera, chunkManager)) return;
 
-    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_POLYGON_OFFSET_LINE);
+    glPolygonOffset(-1.0f, -1.0f);
+
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glLineWidth(3.0f);
 
@@ -293,5 +297,6 @@ void BlockOutline::render(
     glBindVertexArray(0);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glLineWidth(1.0f);
-    glEnable(GL_DEPTH_TEST);
+    glDisable(GL_POLYGON_OFFSET_LINE);
+    glDepthMask(GL_TRUE);
 }

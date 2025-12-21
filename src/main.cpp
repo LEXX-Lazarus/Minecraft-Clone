@@ -137,8 +137,8 @@ int main(int argc, char* argv[]) {
     Texture stoneTexture("assets/textures/StoneBlock.png");
 
     // Create Player and Camera
-    Player player(0.0f, 80.0f, 0.0f);
-    Camera camera(0.0f, 80.0f, 0.0f);
+    Player player(0.0f, 65.0f, 0.0f);
+    Camera camera(0.0f, 65.0f, 0.0f);
     player.setGameMode(GameMode::SPECTATOR);
 
     ChunkManager chunkManager(12);
