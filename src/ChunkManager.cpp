@@ -7,6 +7,7 @@
 #include <queue>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 ChunkManager::ChunkManager(int renderDistance)
     : renderDistance(renderDistance), lastPlayerChunkX(INT_MAX), lastPlayerChunkZ(INT_MAX),
@@ -103,25 +104,48 @@ std::pair<int, int> ChunkManager::worldToChunkCoords(float worldX, float worldZ)
     return { chunkX, chunkZ };
 }
 
-// Precompute chunk load rings around player for gradual loading
+// Precompute chunk load rings around player for gradual loading (CIRCULAR)
 void ChunkManager::prepareChunkLoadRings(int playerChunkX, int playerChunkZ) {
     chunkLoadRings.clear();
     currentRing = 0;
     ringIndex = 0;
 
+    // Create circular rings by distance
     for (int r = 0; r <= renderDistance; r++) {
         std::vector<std::pair<int, int>> ringChunks;
-        for (int dx = -r; dx <= r; dx++) {
-            for (int dz = -r; dz <= r; dz++) {
-                if (std::abs(dx) != r && std::abs(dz) != r) continue; // only edges
+
+        // Check all chunks in a square area
+        for (int dx = -renderDistance; dx <= renderDistance; dx++) {
+            for (int dz = -renderDistance; dz <= renderDistance; dz++) {
+                // Calculate actual distance from player
+                float distance = std::sqrt(dx * dx + dz * dz);
+
+                // Only include chunks within circular radius and at current ring distance
+                if (distance > r + 0.5f || distance < r - 0.5f) continue;
+                if (distance > renderDistance) continue;
+
                 int cx = playerChunkX + dx;
                 int cz = playerChunkZ + dz;
-                if (!isChunkLoaded(cx, cz))
+
+                if (!isChunkLoaded(cx, cz)) {
                     ringChunks.push_back({ cx, cz });
+                }
             }
         }
-        if (!ringChunks.empty())
+
+        // Sort ring chunks by distance from center (closest first within ring)
+        std::sort(ringChunks.begin(), ringChunks.end(),
+            [playerChunkX, playerChunkZ](const std::pair<int, int>& a, const std::pair<int, int>& b) {
+                int dx1 = a.first - playerChunkX;
+                int dz1 = a.second - playerChunkZ;
+                int dx2 = b.first - playerChunkX;
+                int dz2 = b.second - playerChunkZ;
+                return (dx1 * dx1 + dz1 * dz1) < (dx2 * dx2 + dz2 * dz2);
+            });
+
+        if (!ringChunks.empty()) {
             chunkLoadRings.push_back(ringChunks);
+        }
     }
 }
 
@@ -155,17 +179,23 @@ void ChunkManager::update(float playerX, float playerZ) {
     processReadyChunks();
 }
 
-// Remove chunks beyond render distance
+// Remove chunks beyond render distance (CIRCULAR)
 void ChunkManager::unloadDistantChunks(int playerChunkX, int playerChunkZ) {
     std::vector<std::pair<int, int>> toUnload;
 
     {
         std::lock_guard<std::mutex> lock(chunksMutex);
         for (auto& [coords, chunk] : chunks) {
-            int dx = std::abs(coords.first - playerChunkX);
-            int dz = std::abs(coords.second - playerChunkZ);
-            if (dx > renderDistance + 1 || dz > renderDistance + 1)
+            int dx = coords.first - playerChunkX;
+            int dz = coords.second - playerChunkZ;
+
+            // Calculate circular distance
+            float distance = std::sqrt(dx * dx + dz * dz);
+
+            // Unload if outside circular radius (with small buffer)
+            if (distance > renderDistance + 2) {
                 toUnload.push_back(coords);
+            }
         }
     }
 
