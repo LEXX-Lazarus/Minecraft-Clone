@@ -8,20 +8,24 @@ class Noise {
 public:
     Noise(uint32_t seed = 0);
 
-    // Perlin Noise (good for terrain)
+    // ==================== PERLIN NOISE ====================
     float perlin2D(float x, float y) const;
     float perlinOctave2D(float x, float y, int octaves, float persistence) const;
 
     float perlin3D(float x, float y, float z) const;
     float perlinOctave3D(float x, float y, float z, int octaves, float persistence) const;
 
-    // Simplex Noise (better for caves - less grid artifacts)
+    // ==================== SIMPLEX NOISE ====================
     float simplex2D(float x, float y) const;
     float simplex3D(float x, float y, float z) const;
     float simplexOctave3D(float x, float y, float z, int octaves, float persistence) const;
 
-    // Worley/Cellular Noise (for cheese caves)
+    // ==================== WORLEY NOISE ====================
     float worley3D(float x, float y, float z) const;
+
+    // ==================== MOUNTAIN / RIDGED NOISE ====================
+    float ridgedPerlin2D(float x, float y, int octaves, float persistence) const;
+    float mountainNoise2D(float x, float y) const;
 
 private:
     std::vector<int> permutation;
@@ -39,7 +43,6 @@ private:
 
     // Worley helpers
     float hash(float x, float y, float z) const;
-    float noise3(float x, float y, float z) const;
 };
 
 #endif

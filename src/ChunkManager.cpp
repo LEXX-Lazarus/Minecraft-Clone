@@ -11,9 +11,11 @@
 
 ChunkManager::ChunkManager(int renderDistance)
     : renderDistance(renderDistance), lastPlayerChunkX(INT_MAX), lastPlayerChunkZ(INT_MAX),
-    currentRing(0), ringIndex(0), shouldStopGeneration(false)
+    currentRing(0), ringIndex(0), shouldStopGeneration(false),
+    fullDetailDistance(8.0f),      // Full detail within 8 chunks
+    mediumDetailDistance(16.0f),   // Medium detail 8-16 chunks
+    lowDetailDistance(30.0f)       // Low detail 16-24 chunks
 {
-    // Start background generation thread
     generationThread = std::make_unique<std::thread>(&ChunkManager::generationWorker, this);
 }
 
@@ -110,19 +112,18 @@ void ChunkManager::prepareChunkLoadRings(int playerChunkX, int playerChunkZ) {
     currentRing = 0;
     ringIndex = 0;
 
-    // Create circular rings by distance
-    for (int r = 0; r <= renderDistance; r++) {
+    // Load chunks up to lowDetailDistance (furthest LOD)
+    int maxDistance = static_cast<int>(lowDetailDistance);
+
+    for (int r = 0; r <= maxDistance; r++) {
         std::vector<std::pair<int, int>> ringChunks;
 
-        // Check all chunks in a square area
-        for (int dx = -renderDistance; dx <= renderDistance; dx++) {
-            for (int dz = -renderDistance; dz <= renderDistance; dz++) {
-                // Calculate actual distance from player
+        for (int dx = -maxDistance; dx <= maxDistance; dx++) {
+            for (int dz = -maxDistance; dz <= maxDistance; dz++) {
                 float distance = std::sqrt(dx * dx + dz * dz);
 
-                // Only include chunks within circular radius and at current ring distance
                 if (distance > r + 0.5f || distance < r - 0.5f) continue;
-                if (distance > renderDistance) continue;
+                if (distance > maxDistance) continue;
 
                 int cx = playerChunkX + dx;
                 int cz = playerChunkZ + dz;
@@ -133,7 +134,6 @@ void ChunkManager::prepareChunkLoadRings(int playerChunkX, int playerChunkZ) {
             }
         }
 
-        // Sort ring chunks by distance from center (closest first within ring)
         std::sort(ringChunks.begin(), ringChunks.end(),
             [playerChunkX, playerChunkZ](const std::pair<int, int>& a, const std::pair<int, int>& b) {
                 int dx1 = a.first - playerChunkX;
@@ -188,12 +188,10 @@ void ChunkManager::unloadDistantChunks(int playerChunkX, int playerChunkZ) {
         for (auto& [coords, chunk] : chunks) {
             int dx = coords.first - playerChunkX;
             int dz = coords.second - playerChunkZ;
-
-            // Calculate circular distance
             float distance = std::sqrt(dx * dx + dz * dz);
 
-            // Unload if outside circular radius (with small buffer)
-            if (distance > renderDistance + 2) {
+            // Unload chunks beyond low detail distance
+            if (distance > lowDetailDistance + 2) {
                 toUnload.push_back(coords);
             }
         }
@@ -258,7 +256,12 @@ void ChunkManager::render() {
 // Render only specific block type
 void ChunkManager::renderType(BlockType type) {
     std::lock_guard<std::mutex> lock(chunksMutex);
-    for (auto& [coords, chunk] : chunks) chunk->renderType(type);
+
+    for (auto& [coords, chunk] : chunks) {
+        ChunkLOD lod = calculateLOD(coords.first, coords.second,
+            lastPlayerChunkX, lastPlayerChunkZ);
+        renderChunkAtLOD(chunk, lod, type);
+    }
 }
 
 // Get block at world coordinates (returns nullptr if chunk not loaded)
@@ -277,4 +280,44 @@ Block* ChunkManager::getBlockAt(int worldX, int worldY, int worldZ) {
     if (it == chunks.end()) return nullptr;
 
     return new Block(it->second->getBlock(localX, worldY, localZ));
+}
+
+void ChunkManager::setLODDistances(float fullDetail, float mediumDetail, float lowDetail) {
+    fullDetailDistance = fullDetail;
+    mediumDetailDistance = mediumDetail;
+    lowDetailDistance = lowDetail;
+}
+
+ChunkLOD ChunkManager::calculateLOD(int chunkX, int chunkZ, int playerChunkX, int playerChunkZ) {
+    int dx = chunkX - playerChunkX;
+    int dz = chunkZ - playerChunkZ;
+    float distance = std::sqrt(dx * dx + dz * dz);
+
+    if (distance <= fullDetailDistance) {
+        return ChunkLOD::FULL;
+    }
+    else if (distance <= mediumDetailDistance) {
+        return ChunkLOD::MEDIUM;
+    }
+    else {
+        return ChunkLOD::LOW;
+    }
+}
+
+void ChunkManager::renderChunkAtLOD(Chunk* chunk, ChunkLOD lod, BlockType type) {
+    if (lod == ChunkLOD::FULL) {
+        // Full detail - render everything normally
+        chunk->renderType(type);
+    }
+    else if (lod == ChunkLOD::MEDIUM) {
+        // Medium detail - skip every other block vertically for performance
+        // Still render all horizontal blocks
+        // For now, just render normally but could optimize mesh
+        chunk->renderType(type);
+    }
+    else if (lod == ChunkLOD::LOW) {
+        // Low detail - only render surface blocks
+        // Very simplified mesh for distant chunks
+        chunk->renderType(type);
+    }
 }

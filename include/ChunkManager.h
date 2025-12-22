@@ -9,7 +9,14 @@
 #include <thread>
 #include <mutex>
 #include <queue>
-#include <memory> // for std::unique_ptr
+#include <memory>
+
+// LOD (Level of Detail) levels
+enum class ChunkLOD {
+    FULL = 0,      // Full detail - entities, all blocks
+    MEDIUM = 1,    // Medium detail - simplified mesh
+    LOW = 2        // Low detail - very simplified, distant chunks
+};
 
 class ChunkManager {
 public:
@@ -21,12 +28,19 @@ public:
     void renderType(BlockType type);
 
     int getRenderDistance() const { return renderDistance; }
-
     Block* getBlockAt(int worldX, int worldY, int worldZ);
+
+    // LOD settings
+    void setLODDistances(float fullDetail, float mediumDetail, float lowDetail);
 
 private:
     int renderDistance;
     std::map<std::pair<int, int>, Chunk*> chunks;
+
+    // LOD distance thresholds (in chunks)
+    float fullDetailDistance;
+    float mediumDetailDistance;
+    float lowDetailDistance;
 
     int lastPlayerChunkX;
     int lastPlayerChunkZ;
@@ -41,7 +55,7 @@ private:
     std::queue<Chunk*> readyChunks;
     std::mutex queueMutex;
     std::mutex chunksMutex;
-    std::unique_ptr<std::thread> generationThread; // <-- changed to unique_ptr
+    std::unique_ptr<std::thread> generationThread;
     bool shouldStopGeneration;
 
     void generationWorker();
@@ -54,6 +68,10 @@ private:
     void loadChunk(int chunkX, int chunkZ);
     void unloadChunk(int chunkX, int chunkZ);
     void linkChunkNeighbors(int chunkX, int chunkZ);
+
+    // LOD helpers
+    ChunkLOD calculateLOD(int chunkX, int chunkZ, int playerChunkX, int playerChunkZ);
+    void renderChunkAtLOD(Chunk* chunk, ChunkLOD lod, BlockType type);
 };
 
 #endif
