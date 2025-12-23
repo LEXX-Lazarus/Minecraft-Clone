@@ -27,8 +27,10 @@ set(GLAD_SOURCES "external/glad/src/glad.c")
 # Source files
 set(SOURCES
     src/main.cpp
-    src/Camera.cpp
-    src/Player.cpp
+    src/WorldSave.cpp
+    src/Player/Camera.cpp
+    src/Player/Player.cpp
+    src/Player/BlockInteraction.cpp
     src/Renderer.cpp
     src/Texture.cpp
     src/Shader.cpp

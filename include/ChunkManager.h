@@ -1,87 +1,83 @@
-#ifndef CHUNK_MANAGER_H
-#define CHUNK_MANAGER_H
-
+#pragma once
 #include "Chunk.h"
 #include "TerrainGenerator.h"
-
+#include "WorldSave.h"
 #include <unordered_map>
-#include <vector>
-#include <utility>
+#include <unordered_set>
+#include <queue>
 #include <thread>
 #include <mutex>
-#include <queue>
-#include <memory>
+#include <condition_variable>
+#include <climits>
+#include <cmath>
+#include <vector>
 
-// =====================================================
-// FAST HASH FOR CHUNK COORDINATES
-// =====================================================
-struct ChunkCoordHash {
+// Hash for std::pair<int,int> to use in unordered_set/map
+struct pair_hash {
     std::size_t operator()(const std::pair<int, int>& p) const noexcept {
-        // 64-bit mix, very fast, low collision
-        return (static_cast<std::size_t>(p.first) << 32)
-            ^ static_cast<std::size_t>(p.second);
+        return std::hash<int>()(p.first) ^ (std::hash<int>()(p.second) << 1);
     }
+};
+
+struct ChunkDistanceEntry {
+    int x;
+    int z;
+    int distSq;
 };
 
 class ChunkManager {
 public:
-    ChunkManager(int renderDistance);
+    ChunkManager(int renderDistance, const std::string& worldName = "world1");
     ~ChunkManager();
 
     void update(float playerX, float playerZ);
     void render();
     void renderType(BlockType type);
-
-    int getRenderDistance() const { return renderDistance; }
-
-    // NOTE: behavior unchanged (still returns heap Block*)
-    // Optimization intentionally avoids altering semantics
     Block* getBlockAt(int worldX, int worldY, int worldZ);
+    std::pair<int, int> worldToChunkCoords(float x, float z);
+
+    // Block modification methods
+    bool setBlockAt(int worldX, int worldY, int worldZ, BlockType type);
+    void rebuildChunkMeshAt(int worldX, int worldY, int worldZ);
 
 private:
-    int renderDistance;
+    // =============================
+    // Threaded generation
+    // =============================
+    void generationWorker();
+    void processReadyChunks();
 
-    // =====================================================
-    // CHUNK STORAGE (OPTIMIZED)
-    // =====================================================
-    std::unordered_map<
-        std::pair<int, int>,
-        Chunk*,
-        ChunkCoordHash
-    > chunks;
+    // =============================
+    // Chunk management
+    // =============================
+    void updateDesiredChunks(int pcx, int pcz);
+    void unloadDistantChunks(int pcx, int pcz);
+    void linkChunkNeighbors(Chunk* chunk);
+    bool isChunkLoaded(int cx, int cz);
+    void loadChunk(int cx, int cz);
+    void unloadChunk(int cx, int cz);
+
+    long long makeKey(int x, int z) const;
+
+private:
+    std::unique_ptr<WorldSave> worldSave;
+
+    int renderDistance;
+    int renderDistanceSquared;
 
     int lastPlayerChunkX;
     int lastPlayerChunkZ;
 
-    // =====================================================
-    // ASYNC GENERATION
-    // =====================================================
-    std::queue<std::pair<int, int>> generationQueue;
-    std::queue<Chunk*> readyChunks;
-
-    std::mutex queueMutex;
+    std::unordered_map<long long, Chunk*> chunks;           // Loaded chunks
     std::mutex chunksMutex;
 
-    std::unique_ptr<std::thread> generationThread;
-    bool shouldStopGeneration;
+    std::unordered_set<std::pair<int, int>, pair_hash> chunksBeingGenerated; // Prevent double queue
+    std::unordered_set<long long> queuedChunks;           // keys of queued chunks
 
-    // =====================================================
-    // INTERNAL LOGIC
-    // =====================================================
-    void generationWorker();
-    void processReadyChunks();
-
-    std::pair<int, int> worldToChunkCoords(float worldX, float worldZ);
-
-    void updateChunksAroundPlayer(int playerChunkX, int playerChunkZ);
-    void unloadDistantChunks(int playerChunkX, int playerChunkZ);
-
-    bool isChunkLoaded(int chunkX, int chunkZ);
-
-    void loadChunk(int chunkX, int chunkZ);
-    void unloadChunk(int chunkX, int chunkZ);
-
-    void linkChunkNeighbors(int chunkX, int chunkZ);
+    std::queue<std::pair<int, int>> generationQueue;
+    std::queue<Chunk*> readyChunks;
+    std::mutex mutex;
+    std::condition_variable queueCV;
+    std::thread generationThread;
+    bool shouldStop;
 };
-
-#endif

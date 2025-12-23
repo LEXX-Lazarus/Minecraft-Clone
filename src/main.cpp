@@ -17,8 +17,9 @@
 #pragma warning(pop)
 #endif
 
-#include "Camera.h"
-#include "Player.h"
+#include "Player/Camera.h"
+#include "Player/Player.h"
+#include "Player/BlockInteraction.h"
 #include "Renderer.h"
 #include "Texture.h"
 #include "Shader.h"
@@ -142,7 +143,7 @@ int main(int argc, char* argv[]) {
     float spawnZ = 0.0f;
     float spawnY = 120.0f;  // Minimum spawn height
 
-    ChunkManager chunkManager(36);
+    ChunkManager chunkManager(12);
 
     // Wait a moment for chunks to generate
     //std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -173,6 +174,9 @@ int main(int argc, char* argv[]) {
     Player player(spawnX, spawnY, spawnZ);
     Camera camera(spawnX, spawnY, spawnZ);
     player.setGameMode(GameMode::SURVIVAL);
+
+    BlockInteraction blockInteraction;  
+    BlockType selectedBlock = BlockType::STONE;
 
 
     bool running = true;
@@ -217,7 +221,33 @@ int main(int argc, char* argv[]) {
                         << (newMode == GameMode::SPECTATOR ? "SPECTATOR" : "SURVIVAL")
                         << " mode" << std::endl;
                 }
+                // BLOCK SELECTION (moved here)
+                if (event.key.key == SDLK_1) {
+                    selectedBlock = BlockType::DIRT;
+                    std::cout << "Selected: DIRT" << std::endl;
+                }
+                if (event.key.key == SDLK_2) {
+                    selectedBlock = BlockType::GRASS;
+                    std::cout << "Selected: GRASS" << std::endl;
+                }
+                if (event.key.key == SDLK_3) {
+                    selectedBlock = BlockType::STONE;
+                    std::cout << "Selected: STONE" << std::endl;
+                }
             }
+
+            // MOUSE BUTTON HANDLING (moved here, outside key_down)
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !window.isPaused()) {
+                if (event.button.button == SDL_BUTTON_LEFT) {
+                    // Break block
+                    blockInteraction.breakBlock(camera, &chunkManager);
+                }
+                else if (event.button.button == SDL_BUTTON_RIGHT) {
+                    // Place block
+                    blockInteraction.placeBlock(camera, &chunkManager, selectedBlock);
+                }
+            }
+
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && window.isPaused()) {
                 int buttonID;
                 if (pauseMenu.isButtonClicked(event.button.x, event.button.y,
