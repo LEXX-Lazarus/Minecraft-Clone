@@ -140,14 +140,12 @@ int main(int argc, char* argv[]) {
     // Create Player and Camera
     float spawnX = 0.0f;
     float spawnZ = 0.0f;
-    float spawnY = 100.0f;  // Minimum spawn height
+    float spawnY = 120.0f;  // Minimum spawn height
 
-    ChunkManager chunkManager(12);
-    chunkManager.update(spawnX, spawnZ);
-    chunkManager.setLODDistances(6.0f, 12.0f, 20.0f);  // Custom LOD distances
+    ChunkManager chunkManager(36);
 
     // Wait a moment for chunks to generate
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     int blockX = static_cast<int>(std::round(spawnX));
     int blockZ = static_cast<int>(std::round(-spawnZ));
@@ -155,7 +153,7 @@ int main(int argc, char* argv[]) {
     int highestSolidY = -1;
 
     // Scan from minimum spawn height up to max world height
-    for (int checkY = 100; checkY < 200; ++checkY) {
+    for (int checkY = 120; checkY < 200; ++checkY) {
         Block* block = chunkManager.getBlockAt(blockX, checkY, blockZ);
         if (block) {
             if (!block->isAir()) {
@@ -169,7 +167,7 @@ int main(int argc, char* argv[]) {
         spawnY = static_cast<float>(highestSolidY) + 1.0f; // Spawn above the highest solid block
     }
     else {
-        spawnY = 100.0f; // Default if nothing found
+        spawnY = 120.0f; // Default if nothing found
     }
 
     Player player(spawnX, spawnY, spawnZ);

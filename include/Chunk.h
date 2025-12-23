@@ -8,9 +8,9 @@
 
 // Chunk dimensions
 constexpr int CHUNK_SIZE_X = 16;
-constexpr int CHUNK_SIZE_Y = 1000;
+constexpr int CHUNK_SIZE_Y = 256;
 constexpr int CHUNK_SIZE_Z = 16;
-constexpr int MAX_HEIGHT = 1000;
+constexpr int MAX_HEIGHT = 256;
 
 class Chunk {
 public:
