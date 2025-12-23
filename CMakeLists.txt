@@ -31,9 +31,9 @@ set(SOURCES
     src/Player/Camera.cpp
     src/Player/Player.cpp
     src/Player/BlockInteraction.cpp
-    src/Renderer.cpp
-    src/Texture.cpp
-    src/Shader.cpp
+    src/Rendering/Renderer.cpp
+    src/Rendering/Texture.cpp
+    src/Rendering/Shader.cpp
     src/Window.cpp
     src/GUI/PauseMenu.cpp
     src/GUI/Crosshair.cpp
