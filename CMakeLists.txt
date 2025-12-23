@@ -34,6 +34,7 @@ set(SOURCES
     src/Rendering/Renderer.cpp
     src/Rendering/Texture.cpp
     src/Rendering/Shader.cpp
+    src/Rendering/Lighting.cpp
     src/Window.cpp
     src/GUI/PauseMenu.cpp
     src/GUI/Crosshair.cpp

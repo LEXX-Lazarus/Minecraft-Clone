@@ -23,6 +23,7 @@
 #include "Rendering/Renderer.h"
 #include "Rendering/Texture.h"
 #include "Rendering/Shader.h"
+#include "Rendering/Lighting.h"
 #include "Window.h"
 #include "GUI/PauseMenu.h"
 #include "GUI/DebugOverlay.h"
@@ -37,8 +38,11 @@ const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
+layout (location = 2) in vec3 aNormal;  // NEW: Face normal
 
 out vec2 texCoord;
+out vec3 fragPos;
+out vec3 normal;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -47,7 +51,9 @@ uniform mat4 projection;
 void main()
 {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
+    fragPos = aPos;
     texCoord = aTexCoord;
+    normal = aNormal;  // Pass normal to fragment shader
 }
 )";
 
@@ -57,12 +63,31 @@ const char* fragmentShaderSource = R"(
 out vec4 FragColor;
 
 in vec2 texCoord;
+in vec3 fragPos;
+in vec3 normal;
 
 uniform sampler2D ourTexture;
+uniform vec3 sunDirection;
+uniform vec3 sunColor;
+uniform float ambientStrength;
 
 void main()
 {
-    FragColor = texture(ourTexture, texCoord);
+    // Sample texture
+    vec4 texColor = texture(ourTexture, texCoord);
+    
+    // Ambient lighting
+    vec3 ambient = ambientStrength * sunColor;
+    
+    // Diffuse lighting
+    vec3 norm = normalize(normal);
+    float diff = max(dot(norm, sunDirection), 0.0);
+    vec3 diffuse = diff * sunColor;
+    
+    // Combine lighting
+    vec3 result = (ambient + diffuse) * texColor.rgb;
+    
+    FragColor = vec4(result, texColor.a);
 }
 )";
 
@@ -326,6 +351,13 @@ int main(int argc, char* argv[]) {
 
         stoneTexture.bind();
         chunkManager.renderType(BlockType::STONE);
+
+        // After creating shader:
+        Lighting lighting;
+        lighting.applyToShader(shader.getID());
+
+        // In render loop (after shader.use()):
+        lighting.applyToShader(shader.getID());
 
         // Render block outline (only when not paused)
         if (!window.isPaused()) {  // ADD THIS

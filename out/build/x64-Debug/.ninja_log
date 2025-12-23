@@ -3,12 +3,12 @@
 19	206	7879769349291827	CMakeFiles/MinecraftClone.dir/src/Renderer.cpp.obj	39581a1fb28d08db
 32	122	7879795376431142	CMakeFiles/MinecraftClone.dir/src/Camera.cpp.obj	3eb41ed54087054e
 61	531	7879769349721832	CMakeFiles/MinecraftClone.dir/external/glad/src/glad.c.obj	35611394597b1713
-37	987	7881785166067469	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
+16	1196	7881802300747466	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
 23	859	7879769349336844	CMakeFiles/MinecraftClone.dir/src/Texture.cpp.obj	857c4bc64c005cc7
-727	1638	7881785310767478	MinecraftClone.exe	3fdb82d6d4813994
+1196	1719	7881802312552457	MinecraftClone.exe	fc628ee80db61457
 27	845	7879769349376839	CMakeFiles/MinecraftClone.dir/src/Shader.cpp.obj	63a76f68fa94fb0e
 31	960	7879769349421847	CMakeFiles/MinecraftClone.dir/src/Window.cpp.obj	61cf38630428c7f
-22	704	7881617281866759	CMakeFiles/MinecraftClone.dir/src/Chunk.cpp.obj	7c9a800cb3ce1b3
+27	822	7881790683087473	CMakeFiles/MinecraftClone.dir/src/Chunk.cpp.obj	7c9a800cb3ce1b3
 36	873	7879769349466839	CMakeFiles/MinecraftClone.dir/src/GUI/GUI.cpp.obj	d5bccbc1d06ea3c1
 19	322	7881625046204506	CMakeFiles/MinecraftClone.dir/src/TerrainGenerator.cpp.obj	4f4412d70141176e
 53	1433	7881777074442458	CMakeFiles/MinecraftClone.dir/src/ChunkManager.cpp.obj	4519dc381d4210c6
@@ -23,6 +23,5 @@
 173	2529	7881784279982464	CMakeFiles/MinecraftClone.dir/src/WorldSave.cpp.obj	e6b0b1b577d64141
 34	116	7881784402262449	CMakeFiles/MinecraftClone.dir/src/Rendering/Renderer.cpp.obj	443da53c5821b23a
 39	726	7881785303887471	CMakeFiles/MinecraftClone.dir/src/Rendering/Shader.cpp.obj	f9c16829f8d06ac9
-49	879	7881785803057462	CMakeFiles/MinecraftClone.dir/src/Rendering/Texture.cpp.obj	cee675979fc51546
-44	1385	7881785803007451	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	115df34996e230d3
-1386	2067	7881785816427464	MinecraftClone.exe	f7fcf6594988ddb8
+22	716	7881790683042481	CMakeFiles/MinecraftClone.dir/src/Rendering/Texture.cpp.obj	cee675979fc51546
+21	621	7881802300802465	CMakeFiles/MinecraftClone.dir/src/Rendering/Lighting.cpp.obj	4b763fed869c9f1f
