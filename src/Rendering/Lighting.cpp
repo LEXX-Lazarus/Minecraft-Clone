@@ -72,7 +72,7 @@ void Lighting::updateSunMoonPosition() {
     sunDirection = glm::vec3(
         std::cos(angle) * 0.7f,  // East-West
         std::sin(angle),          // Up-Down
-        0.3f                      // Slight north bias (2PM angle)
+        0.3f                      // Slight north bias
     );
     sunDirection = glm::normalize(sunDirection);
 
@@ -81,44 +81,113 @@ void Lighting::updateSunMoonPosition() {
 }
 
 void Lighting::updateColors() {
-    // Dawn: 0.2-0.3, Day: 0.3-0.7, Dusk: 0.7-0.8, Night: 0.8-0.2
+    // Convert timeOfDay (0-1) to hours (0-24)
+    float hours = timeOfDay * 24.0f;
 
-    float sunHeight = sunDirection.y;
+    // Define color palette - VIBRANT AND SATURATED
+    glm::vec3 midnightSky(0.05f, 0.08f, 0.25f);        // Deep blue night (darkest)
+    glm::vec3 predawnSky(0.08f, 0.12f, 0.35f);         // Dark blue before sunrise
+    glm::vec3 sunriseSky(1.0f, 0.5f, 0.2f);            // Vibrant orange sunrise
+    glm::vec3 morningSky(0.4f, 0.7f, 1.0f);            // Bright morning blue
+    glm::vec3 noonSky(0.4f, 0.75f, 1.0f);              // Brightest blue sky
+    glm::vec3 afternoonSky(0.5f, 0.75f, 0.95f);        // Slightly warmer afternoon
+    glm::vec3 sunsetSky(1.0f, 0.4f, 0.15f);            // Deep orange/red sunset
+    glm::vec3 duskSky(0.15f, 0.2f, 0.45f);             // Purple dusk
 
-    if (timeOfDay >= 0.2f && timeOfDay <= 0.3f) {
-        // Sunrise (orange/pink sky)
-        float t = (timeOfDay - 0.2f) / 0.1f;
-        skyColor = glm::mix(glm::vec3(0.1f, 0.1f, 0.2f), glm::vec3(1.0f, 0.6f, 0.3f), t);
-        sunColor = glm::mix(glm::vec3(1.0f, 0.4f, 0.2f), glm::vec3(1.0f, 1.0f, 0.9f), t);
-        ambientStrength = glm::mix(0.4f, 0.8f, t);  // CHANGED: was 0.2f to 0.5f
+    glm::vec3 nightLight(0.15f, 0.2f, 0.35f);          // Dim bluish moonlight
+    glm::vec3 predawnLight(0.3f, 0.35f, 0.5f);         // Pre-sunrise glow
+    glm::vec3 sunriseLight(1.0f, 0.6f, 0.3f);          // Warm orange light
+    glm::vec3 morningLight(1.0f, 0.95f, 0.85f);        // Bright warm white
+    glm::vec3 noonLight(1.0f, 1.0f, 0.95f);            // Brightest white
+    glm::vec3 afternoonLight(1.0f, 0.95f, 0.8f);       // Warm afternoon light
+    glm::vec3 sunsetLight(1.0f, 0.5f, 0.2f);           // Orange sunset light
+    glm::vec3 duskLight(0.4f, 0.45f, 0.7f);            // Purple dusk light
+
+    // Smooth interpolation based on time of day
+    if (hours >= 23.5f || hours < 0.5f) {
+        // 11:30 PM - 12:30 AM: Darkest period (extended)
+        skyColor = midnightSky;
+        sunColor = nightLight;
+        ambientStrength = 0.12f;  // Stay at darkest
     }
-    else if (timeOfDay > 0.3f && timeOfDay < 0.7f) {
-        // Daytime (bright blue sky)
-        skyColor = glm::vec3(0.53f, 0.81f, 0.98f);  // Sky blue
-        sunColor = glm::vec3(1.0f, 0.98f, 0.92f);   // Warm white
-        ambientStrength = 0.8f;  // CHANGED: was 0.6f - much brighter!
+    else if (hours >= 0.5f && hours < 5.0f) {
+        // 12:30 AM - 5 AM: Dark bluish night
+        float t = glm::smoothstep(0.5f, 5.0f, hours);
+        skyColor = glm::mix(midnightSky, predawnSky, t);
+        sunColor = glm::mix(nightLight, predawnLight, t);
+        ambientStrength = glm::mix(0.12f, 0.18f, t);
     }
-    else if (timeOfDay >= 0.7f && timeOfDay <= 0.8f) {
-        // Sunset (orange/red sky)
-        float t = (timeOfDay - 0.7f) / 0.1f;
-        skyColor = glm::mix(glm::vec3(1.0f, 0.5f, 0.2f), glm::vec3(0.1f, 0.1f, 0.2f), t);
-        sunColor = glm::mix(glm::vec3(1.0f, 0.5f, 0.3f), glm::vec3(0.3f, 0.3f, 0.5f), t);
-        ambientStrength = glm::mix(0.8f, 0.3f, t);  // CHANGED: was 0.5f to 0.2f
+    else if (hours >= 5.0f && hours < 6.0f) {
+        // 5 AM - 6 AM: Orange starts to appear
+        float t = glm::smoothstep(5.0f, 6.0f, hours);
+        skyColor = glm::mix(predawnSky, sunriseSky, t);
+        sunColor = glm::mix(predawnLight, sunriseLight, t);
+        ambientStrength = glm::mix(0.18f, 0.45f, t);
+    }
+    else if (hours >= 6.0f && hours < 8.0f) {
+        // 6 AM - 8 AM: Orange sunrise - smoother transition to blue
+        float t = glm::smoothstep(6.0f, 8.0f, hours);
+        // Create intermediate orange-blue blend to avoid grey
+        glm::vec3 orangeBlue = glm::vec3(0.7f, 0.6f, 0.6f);  // Warm transition color
+        skyColor = glm::mix(sunriseSky, orangeBlue, t);
+        sunColor = glm::mix(sunriseLight, morningLight, t);
+        ambientStrength = glm::mix(0.45f, 0.70f, t);
+    }
+    else if (hours >= 8.0f && hours < 10.0f) {
+        // 8 AM - 10 AM: Transition to morning blue
+        float t = glm::smoothstep(8.0f, 10.0f, hours);
+        glm::vec3 orangeBlue = glm::vec3(0.7f, 0.6f, 0.6f);
+        skyColor = glm::mix(orangeBlue, morningSky, t);
+        sunColor = glm::mix(morningLight, noonLight, t * 0.5f);
+        ambientStrength = glm::mix(0.70f, 0.85f, t);
+    }
+    else if (hours >= 10.0f && hours < 12.0f) {
+        // 10 AM - 12 PM: Reach brightest noon
+        float t = glm::smoothstep(10.0f, 12.0f, hours);
+        skyColor = glm::mix(morningSky, noonSky, t);
+        sunColor = glm::mix(noonLight, noonLight, t);
+        ambientStrength = glm::mix(0.85f, 1.0f, t);
+    }
+    else if (hours >= 12.0f && hours < 16.0f) {
+        // 12 PM - 4 PM: Bright blue afternoon (extended)
+        float t = glm::smoothstep(12.0f, 16.0f, hours);
+        skyColor = glm::mix(noonSky, afternoonSky, t);
+        sunColor = glm::mix(noonLight, afternoonLight, t);
+        ambientStrength = glm::mix(1.0f, 0.70f, t);
+    }
+    else if (hours >= 16.0f && hours < 17.5f) {
+        // 4 PM - 5:30 PM: Start sunset earlier with smooth transition
+        float t = glm::smoothstep(16.0f, 17.5f, hours);
+        glm::vec3 blueOrange = glm::vec3(0.75f, 0.6f, 0.55f);  // Warm transition color
+        skyColor = glm::mix(afternoonSky, blueOrange, t);
+        sunColor = glm::mix(afternoonLight, sunsetLight, t);
+        ambientStrength = glm::mix(0.70f, 0.50f, t);
+    }
+    else if (hours >= 17.5f && hours < 19.0f) {
+        // 5:30 PM - 7 PM: Full orange sunset
+        float t = glm::smoothstep(17.5f, 19.0f, hours);
+        glm::vec3 blueOrange = glm::vec3(0.75f, 0.6f, 0.55f);
+        skyColor = glm::mix(blueOrange, sunsetSky, t);
+        sunColor = glm::mix(sunsetLight, sunsetLight, t);
+        ambientStrength = glm::mix(0.50f, 0.35f, t);
+    }
+    else if (hours >= 19.0f && hours < 20.0f) {
+        // 7 PM - 8 PM: Dusk transition
+        float t = glm::smoothstep(19.0f, 20.0f, hours);
+        skyColor = glm::mix(sunsetSky, duskSky, t);
+        sunColor = glm::mix(sunsetLight, duskLight, t);
+        ambientStrength = glm::mix(0.35f, 0.18f, t);
     }
     else {
-        // Night (dark blue sky, moonlight)
-        skyColor = glm::vec3(0.02f, 0.02f, 0.1f);   // Very dark blue
-        sunColor = glm::vec3(0.0f, 0.0f, 0.0f);     // No sunlight
-        ambientStrength = 0.25f;  // CHANGED: was 0.15f - slightly brighter nights
+        // 8 PM - 11:30 PM: Dark blue night
+        float t = glm::smoothstep(20.0f, 23.5f, hours);
+        skyColor = glm::mix(duskSky, midnightSky, t);
+        sunColor = glm::mix(duskLight, nightLight, t);
+        ambientStrength = glm::mix(0.18f, 0.12f, t);
     }
 
-    // Moon color (bluish-white)
-    moonColor = glm::vec3(0.6f, 0.6f, 0.8f);
-
-    // Boost ambient at night slightly
-    if (sunHeight < 0.0f) {
-        ambientStrength = std::max(0.25f, ambientStrength);  // CHANGED: was 0.15f
-    }
+    // Moon color (cool bluish-white)
+    moonColor = glm::vec3(0.6f, 0.65f, 0.85f);
 }
 
 void Lighting::beginShadowMapPass() {
@@ -130,7 +199,7 @@ void Lighting::beginShadowMapPass() {
     float orthoSize = 100.0f;
     glm::mat4 lightProjection = glm::ortho(-orthoSize, orthoSize, -orthoSize, orthoSize, 1.0f, 300.0f);
 
-    glm::vec3 lightPos = -sunDirection * 150.0f;  // Position sun far away
+    glm::vec3 lightPos = -sunDirection * 150.0f;
     glm::mat4 lightView = glm::lookAt(
         lightPos,
         glm::vec3(0.0f, 0.0f, 0.0f),
@@ -160,15 +229,15 @@ void Lighting::applyToShader(unsigned int shaderID, const glm::vec3& cameraPos) 
 
     // Shadow map
     glUniformMatrix4fv(glGetUniformLocation(shaderID, "lightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
-    glUniform1i(glGetUniformLocation(shaderID, "shadowMap"), 1);  // Tell shader shadowMap is on unit 1
+    glUniform1i(glGetUniformLocation(shaderID, "shadowMap"), 1);
 
     // Bind shadow map to texture unit 1
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, shadowMap);
 
-    // IMPORTANT: Set ourTexture to use texture unit 0
+    // Set ourTexture to use texture unit 0
     glUniform1i(glGetUniformLocation(shaderID, "ourTexture"), 0);
 
-    // Reset to texture unit 0 for subsequent texture bindings
+    // Reset to texture unit 0
     glActiveTexture(GL_TEXTURE0);
 }

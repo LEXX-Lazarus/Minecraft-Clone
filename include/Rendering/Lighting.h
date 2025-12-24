@@ -10,24 +10,23 @@ public:
     Lighting();
     ~Lighting();
 
-    // Initialize shadow map framebuffer
     void initialize(int shadowWidth = 4096, int shadowHeight = 4096);
 
-    // Update time of day (0.0 = midnight, 0.5 = noon, 1.0 = midnight)
     void setTimeOfDay(float time);
     void updateDayNightCycle(float deltaTime, float speed = 0.01f);
 
-    // Shadow map pass (call BEFORE main render)
     void beginShadowMapPass();
     void endShadowMapPass();
 
-    // Apply lighting to main shader
     void applyToShader(unsigned int shaderID, const glm::vec3& cameraPos);
 
     // Getters
     glm::mat4 getLightSpaceMatrix() const { return lightSpaceMatrix; }
     unsigned int getShadowMap() const { return shadowMap; }
     float getTimeOfDay() const { return timeOfDay; }
+    glm::vec3 getSunDirection() const { return sunDirection; }
+    glm::vec3 getMoonDirection() const { return moonDirection; }
+    glm::vec3 getSkyColor() const { return skyColor; }
 
 private:
     // Shadow mapping
