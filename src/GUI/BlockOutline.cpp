@@ -157,13 +157,20 @@ void BlockOutline::render(
     float* viewMatrix,
     float* projectionMatrix
 ) {
-    if (!raycastBlock(camera, chunkManager)) return;
+    // CRITICAL FIX: Check for selection FIRST, before changing GL state
+    if (!raycastBlock(camera, chunkManager)) {
+        // No block selected - don't change any GL state!
+        return;
+    }
 
-    glEnable(GL_DEPTH_TEST);
+    // Save current GL state
+    GLboolean depthMaskBefore;
+    glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMaskBefore);
+
+    // Configure for outline rendering
     glDepthMask(GL_FALSE);
     glEnable(GL_POLYGON_OFFSET_LINE);
     glPolygonOffset(-1.0f, -1.0f);
-
     glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     glLineWidth(3.0f);
 
@@ -177,14 +184,12 @@ void BlockOutline::render(
     const float by = static_cast<float>(selectedBlockY);
     const float bz = static_cast<float>(selectedBlockZ);
 
-    // Render-space Z is inverted
     const float rx = bx;
     const float ry = by;
     const float rz = -bz;
 
     const float o = 0.503f;
 
-    // Camera view direction (already normalized)
     const float viewX = camera.frontX;
     const float viewY = camera.frontY;
     const float viewZ = camera.frontZ;
@@ -209,7 +214,7 @@ void BlockOutline::render(
         return (nx * viewX + ny * viewY + nz * viewZ) < 0.0f;
         };
 
-    // ---------- TOP (+Y)
+    // TOP (+Y)
     if (isExposed(0, 1, 0) && facingCamera(0.0f, 1.0f, 0.0f)) {
         addEdge(rx - o, ry + o, rz - o, rx + o, ry + o, rz - o);
         addEdge(rx + o, ry + o, rz - o, rx + o, ry + o, rz + o);
@@ -217,7 +222,7 @@ void BlockOutline::render(
         addEdge(rx - o, ry + o, rz + o, rx - o, ry + o, rz - o);
     }
 
-    // ---------- BOTTOM (-Y)
+    // BOTTOM (-Y)
     if (isExposed(0, -1, 0) && facingCamera(0.0f, -1.0f, 0.0f)) {
         addEdge(rx - o, ry - o, rz - o, rx + o, ry - o, rz - o);
         addEdge(rx + o, ry - o, rz - o, rx + o, ry - o, rz + o);
@@ -225,7 +230,7 @@ void BlockOutline::render(
         addEdge(rx - o, ry - o, rz + o, rx - o, ry - o, rz - o);
     }
 
-    // ---------- NORTH (+Z chunk -Z render)
+    // NORTH (+Z chunk -Z render)
     if (isExposed(0, 0, -1) && facingCamera(0.0f, 0.0f, 1.0f)) {
         addEdge(rx - o, ry - o, rz + o, rx + o, ry - o, rz + o);
         addEdge(rx + o, ry - o, rz + o, rx + o, ry + o, rz + o);
@@ -233,7 +238,7 @@ void BlockOutline::render(
         addEdge(rx - o, ry + o, rz + o, rx - o, ry - o, rz + o);
     }
 
-    // ---------- SOUTH (-Z chunk +Z render)
+    // SOUTH (-Z chunk +Z render)
     if (isExposed(0, 0, 1) && facingCamera(0.0f, 0.0f, -1.0f)) {
         addEdge(rx - o, ry - o, rz - o, rx + o, ry - o, rz - o);
         addEdge(rx + o, ry - o, rz - o, rx + o, ry + o, rz - o);
@@ -241,7 +246,7 @@ void BlockOutline::render(
         addEdge(rx - o, ry + o, rz - o, rx - o, ry - o, rz - o);
     }
 
-    // ---------- EAST (+X)
+    // EAST (+X)
     if (isExposed(1, 0, 0) && facingCamera(1.0f, 0.0f, 0.0f)) {
         addEdge(rx + o, ry - o, rz - o, rx + o, ry - o, rz + o);
         addEdge(rx + o, ry - o, rz + o, rx + o, ry + o, rz + o);
@@ -249,7 +254,7 @@ void BlockOutline::render(
         addEdge(rx + o, ry + o, rz - o, rx + o, ry - o, rz - o);
     }
 
-    // ---------- WEST (-X)
+    // WEST (-X)
     if (isExposed(-1, 0, 0) && facingCamera(-1.0f, 0.0f, 0.0f)) {
         addEdge(rx - o, ry - o, rz - o, rx - o, ry - o, rz + o);
         addEdge(rx - o, ry - o, rz + o, rx - o, ry + o, rz + o);
@@ -257,46 +262,43 @@ void BlockOutline::render(
         addEdge(rx - o, ry + o, rz - o, rx - o, ry - o, rz - o);
     }
 
-    if (edges.empty()) {
-        glBindVertexArray(0);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        glEnable(GL_DEPTH_TEST);
-        return;
+    // Render edges if we have any
+    if (!edges.empty()) {
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(
+            GL_ARRAY_BUFFER,
+            edges.size() * sizeof(float),
+            edges.data(),
+            GL_DYNAMIC_DRAW
+        );
+
+        float model[16] = {
+            1,0,0,0,
+            0,1,0,0,
+            0,0,1,0,
+            0,0,0,1
+        };
+
+        glUniformMatrix4fv(
+            glGetUniformLocation(shaderProgram, "model"),
+            1, GL_FALSE, model
+        );
+        glUniformMatrix4fv(
+            glGetUniformLocation(shaderProgram, "view"),
+            1, GL_FALSE, viewMatrix
+        );
+        glUniformMatrix4fv(
+            glGetUniformLocation(shaderProgram, "projection"),
+            1, GL_FALSE, projectionMatrix
+        );
+
+        glDrawArrays(GL_LINES, 0, edges.size() / 3);
     }
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(
-        GL_ARRAY_BUFFER,
-        edges.size() * sizeof(float),
-        edges.data(),
-        GL_DYNAMIC_DRAW
-    );
-
-    float model[16] = {
-        1,0,0,0,
-        0,1,0,0,
-        0,0,1,0,
-        0,0,0,1
-    };
-
-    glUniformMatrix4fv(
-        glGetUniformLocation(shaderProgram, "model"),
-        1, GL_FALSE, model
-    );
-    glUniformMatrix4fv(
-        glGetUniformLocation(shaderProgram, "view"),
-        1, GL_FALSE, viewMatrix
-    );
-    glUniformMatrix4fv(
-        glGetUniformLocation(shaderProgram, "projection"),
-        1, GL_FALSE, projectionMatrix
-    );
-
-    glDrawArrays(GL_LINES, 0, edges.size() / 3);
-
+    // CRITICAL: ALWAYS restore GL state, regardless of whether we drew anything
     glBindVertexArray(0);
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glLineWidth(1.0f);
     glDisable(GL_POLYGON_OFFSET_LINE);
-    glDepthMask(GL_TRUE);
+    glDepthMask(depthMaskBefore);  // Restore original depth mask state
 }
