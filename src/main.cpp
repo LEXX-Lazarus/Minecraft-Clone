@@ -33,31 +33,35 @@
 #include "TerrainGenerator.h"
 #include "ChunkManager.h"
 
-// Vertex shader source
+// Shadow map vertex shader (simple depth-only)
+// Updated vertex shader
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
-layout (location = 2) in vec3 aNormal;  // NEW: Face normal
+layout (location = 2) in vec3 aNormal;
 
 out vec2 texCoord;
 out vec3 fragPos;
 out vec3 normal;
+out vec4 fragPosLightSpace;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
+uniform mat4 lightSpaceMatrix;
 
 void main()
 {
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
     fragPos = aPos;
+    normal = aNormal;
     texCoord = aTexCoord;
-    normal = aNormal;  // Pass normal to fragment shader
+    fragPosLightSpace = lightSpaceMatrix * vec4(aPos, 1.0);
+    gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
 )";
 
-// Fragment shader source
+// Updated fragment shader with shadows
 const char* fragmentShaderSource = R"(
 #version 330 core
 out vec4 FragColor;
@@ -65,29 +69,81 @@ out vec4 FragColor;
 in vec2 texCoord;
 in vec3 fragPos;
 in vec3 normal;
+in vec4 fragPosLightSpace;
 
 uniform sampler2D ourTexture;
+uniform sampler2D shadowMap;
 uniform vec3 sunDirection;
 uniform vec3 sunColor;
+uniform vec3 skyColor;
 uniform float ambientStrength;
+uniform vec3 viewPos;
+uniform int isDay;
+
+float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
+{
+    // Perspective divide
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+    
+    if(projCoords.z > 1.0)
+        return 0.0;
+    
+    float currentDepth = projCoords.z;
+    
+    // Bias to prevent shadow acne
+    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.001);
+    
+    // PCF (Percentage Closer Filtering) for soft shadows
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
+        }
+    }
+    shadow /= 9.0;
+    
+    return shadow;
+}
 
 void main()
 {
-    // Sample texture
     vec4 texColor = texture(ourTexture, texCoord);
-    
-    // Ambient lighting
-    vec3 ambient = ambientStrength * sunColor;
-    
-    // Diffuse lighting
     vec3 norm = normalize(normal);
+    
+    // Ambient (skylight)
+    vec3 ambient = ambientStrength * skyColor;
+    
+    // Diffuse
     float diff = max(dot(norm, sunDirection), 0.0);
     vec3 diffuse = diff * sunColor;
     
-    // Combine lighting
-    vec3 result = (ambient + diffuse) * texColor.rgb;
+    // Shadow
+    float shadow = ShadowCalculation(fragPosLightSpace, norm, sunDirection);
     
+    // Apply shadow only to diffuse
+    vec3 lighting = ambient + (1.0 - shadow * 0.7) * diffuse;
+    
+    // Underground darkening (simple AO)
+    float underground = smoothstep(60.0, 100.0, fragPos.y);
+    lighting = mix(lighting * 0.3, lighting, underground);
+    
+    vec3 result = lighting * texColor.rgb;
     FragColor = vec4(result, texColor.a);
+}
+)";
+
+// Shadow map fragment shader (empty - depth only)
+const char* shadowFragmentShader = R"(
+#version 330 core
+
+void main()
+{
+    // Depth is automatically written
 }
 )";
 
@@ -159,10 +215,10 @@ int main(int argc, char* argv[]) {
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
-    Texture grassTexture("assets/textures/GrassBlock.png");
-    Texture dirtTexture("assets/textures/DirtBlock.png");
-    Texture stoneTexture("assets/textures/StoneBlock.png");
-    Texture sandTexture("assets/textures/SandBlock.png");
+    Texture grassTexture("assets/textures/blocks/GrassBlock.png");
+    Texture dirtTexture("assets/textures/blocks/DirtBlock.png");
+    Texture stoneTexture("assets/textures/blocks/StoneBlock.png");
+    Texture sandTexture("assets/textures/blocks/SandBlock.png");
         
     // Create Player and Camera
     float spawnX = 0.0f;
@@ -207,10 +263,6 @@ int main(int argc, char* argv[]) {
     // After creating shader:
     Lighting lighting;
 
-    // In render loop (after shader.use()):
-    lighting.applyToShader(shader.getID());
-
-
     bool running = true;
     SDL_Event event;
 
@@ -223,6 +275,8 @@ int main(int argc, char* argv[]) {
         auto currentFrameTime = std::chrono::high_resolution_clock::now();
         float deltaTime = std::chrono::duration<float>(currentFrameTime - lastFrameTime).count();
         lastFrameTime = currentFrameTime;
+
+        lighting.updateDayNightCycle(deltaTime, 1.0f / 30.0f);
 
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -334,6 +388,9 @@ int main(int argc, char* argv[]) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
+
+        // In render loop (after shader.use()):
+        lighting.applyToShader(shader.getID(), glm::vec3(camera.x, camera.y, camera.z));
 
         float model[16], view[16], projection[16];
         identityMatrix(model);

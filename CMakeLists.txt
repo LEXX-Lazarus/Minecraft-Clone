@@ -55,6 +55,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${SDL3_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external/glad/include
     ${CMAKE_CURRENT_SOURCE_DIR}/external/stb
+    ${CMAKE_CURRENT_SOURCE_DIR}/external/glm
 )
 
 # Link libraries

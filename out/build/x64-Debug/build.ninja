@@ -52,7 +52,7 @@ build cmake_object_order_depends_target_MinecraftClone: phony || .
 build CMakeFiles\MinecraftClone.dir\src\main.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\main.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -61,7 +61,7 @@ build CMakeFiles\MinecraftClone.dir\src\main.cpp.obj: CXX_COMPILER__MinecraftClo
 build CMakeFiles\MinecraftClone.dir\src\WorldSave.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\WorldSave.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -70,7 +70,7 @@ build CMakeFiles\MinecraftClone.dir\src\WorldSave.cpp.obj: CXX_COMPILER__Minecra
 build CMakeFiles\MinecraftClone.dir\src\Player\Camera.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Player\Camera.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\Player
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -79,7 +79,7 @@ build CMakeFiles\MinecraftClone.dir\src\Player\Camera.cpp.obj: CXX_COMPILER__Min
 build CMakeFiles\MinecraftClone.dir\src\Player\Player.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Player\Player.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\Player
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -88,7 +88,7 @@ build CMakeFiles\MinecraftClone.dir\src\Player\Player.cpp.obj: CXX_COMPILER__Min
 build CMakeFiles\MinecraftClone.dir\src\Player\BlockInteraction.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Player\BlockInteraction.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\Player
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -97,7 +97,7 @@ build CMakeFiles\MinecraftClone.dir\src\Player\BlockInteraction.cpp.obj: CXX_COM
 build CMakeFiles\MinecraftClone.dir\src\Rendering\Renderer.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Rendering\Renderer.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\Rendering
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -106,7 +106,7 @@ build CMakeFiles\MinecraftClone.dir\src\Rendering\Renderer.cpp.obj: CXX_COMPILER
 build CMakeFiles\MinecraftClone.dir\src\Rendering\Texture.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Rendering\Texture.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\Rendering
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -115,7 +115,7 @@ build CMakeFiles\MinecraftClone.dir\src\Rendering\Texture.cpp.obj: CXX_COMPILER_
 build CMakeFiles\MinecraftClone.dir\src\Rendering\Shader.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Rendering\Shader.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\Rendering
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -124,7 +124,7 @@ build CMakeFiles\MinecraftClone.dir\src\Rendering\Shader.cpp.obj: CXX_COMPILER__
 build CMakeFiles\MinecraftClone.dir\src\Rendering\Lighting.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Rendering\Lighting.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\Rendering
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -133,7 +133,7 @@ build CMakeFiles\MinecraftClone.dir\src\Rendering\Lighting.cpp.obj: CXX_COMPILER
 build CMakeFiles\MinecraftClone.dir\src\Window.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Window.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -142,7 +142,7 @@ build CMakeFiles\MinecraftClone.dir\src\Window.cpp.obj: CXX_COMPILER__MinecraftC
 build CMakeFiles\MinecraftClone.dir\src\GUI\PauseMenu.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\GUI\PauseMenu.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\GUI
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -151,7 +151,7 @@ build CMakeFiles\MinecraftClone.dir\src\GUI\PauseMenu.cpp.obj: CXX_COMPILER__Min
 build CMakeFiles\MinecraftClone.dir\src\GUI\Crosshair.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\GUI\Crosshair.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\GUI
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -160,7 +160,7 @@ build CMakeFiles\MinecraftClone.dir\src\GUI\Crosshair.cpp.obj: CXX_COMPILER__Min
 build CMakeFiles\MinecraftClone.dir\src\GUI\DebugOverlay.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\GUI\DebugOverlay.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\GUI
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -169,7 +169,7 @@ build CMakeFiles\MinecraftClone.dir\src\GUI\DebugOverlay.cpp.obj: CXX_COMPILER__
 build CMakeFiles\MinecraftClone.dir\src\GUI\BlockOutline.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\GUI\BlockOutline.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src\GUI
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -178,7 +178,7 @@ build CMakeFiles\MinecraftClone.dir\src\GUI\BlockOutline.cpp.obj: CXX_COMPILER__
 build CMakeFiles\MinecraftClone.dir\src\Chunk.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Chunk.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -187,7 +187,7 @@ build CMakeFiles\MinecraftClone.dir\src\Chunk.cpp.obj: CXX_COMPILER__MinecraftCl
 build CMakeFiles\MinecraftClone.dir\src\ChunkManager.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\ChunkManager.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -196,7 +196,7 @@ build CMakeFiles\MinecraftClone.dir\src\ChunkManager.cpp.obj: CXX_COMPILER__Mine
 build CMakeFiles\MinecraftClone.dir\src\TerrainGenerator.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\TerrainGenerator.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -205,7 +205,7 @@ build CMakeFiles\MinecraftClone.dir\src\TerrainGenerator.cpp.obj: CXX_COMPILER__
 build CMakeFiles\MinecraftClone.dir\src\Noise.cpp.obj: CXX_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\src\Noise.cpp || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /GR /EHsc /Zi /Ob0 /Od /RTC1 -std:c++17 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
@@ -214,7 +214,7 @@ build CMakeFiles\MinecraftClone.dir\src\Noise.cpp.obj: CXX_COMPILER__MinecraftCl
 build CMakeFiles\MinecraftClone.dir\external\glad\src\glad.c.obj: C_COMPILER__MinecraftClone_unscanned_Debug D$:\Projects\Games\Minecraft$ Clone\external\glad\src\glad.c || cmake_object_order_depends_target_MinecraftClone
   CONFIG = Debug
   FLAGS = /DWIN32 /D_WINDOWS /Zi /Ob0 /Od /RTC1 -MDd
-  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb"
+  INCLUDES = -I"D:\Projects\Games\Minecraft Clone\include" -IC:\dev\libs\SDL3-3.2.28\include -I"D:\Projects\Games\Minecraft Clone\external\glad\include" -I"D:\Projects\Games\Minecraft Clone\external\stb" -I"D:\Projects\Games\Minecraft Clone\external\glm"
   OBJECT_DIR = CMakeFiles\MinecraftClone.dir
   OBJECT_FILE_DIR = CMakeFiles\MinecraftClone.dir\external\glad\src
   TARGET_COMPILE_PDB = CMakeFiles\MinecraftClone.dir\
