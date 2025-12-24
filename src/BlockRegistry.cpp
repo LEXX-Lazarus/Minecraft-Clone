@@ -5,6 +5,7 @@ void BlockRegistry::loadTextures() {
     textures[BlockType::GRASS] = new Texture("assets/textures/GrassBlock.png");
     textures[BlockType::DIRT] = new Texture("assets/textures/DirtBlock.png");
     textures[BlockType::STONE] = new Texture("assets/textures/StoneBlock.png");
+    textures[BlockType::STONE] = new Texture("assets/textures/SandBlock.png");
 
     std::cout << "Block textures loaded" << std::endl;
 }

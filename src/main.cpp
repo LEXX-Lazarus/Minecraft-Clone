@@ -162,13 +162,14 @@ int main(int argc, char* argv[]) {
     Texture grassTexture("assets/textures/GrassBlock.png");
     Texture dirtTexture("assets/textures/DirtBlock.png");
     Texture stoneTexture("assets/textures/StoneBlock.png");
-
+    Texture sandTexture("assets/textures/SandBlock.png");
+        
     // Create Player and Camera
     float spawnX = 0.0f;
     float spawnZ = 0.0f;
     float spawnY = 120.0f;  // Minimum spawn height
 
-    ChunkManager chunkManager(12);
+    ChunkManager chunkManager(12, "world1");
 
     // Wait a moment for chunks to generate
     //std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -202,6 +203,12 @@ int main(int argc, char* argv[]) {
 
     BlockInteraction blockInteraction;  
     BlockType selectedBlock = BlockType::STONE;
+
+    // After creating shader:
+    Lighting lighting;
+
+    // In render loop (after shader.use()):
+    lighting.applyToShader(shader.getID());
 
 
     bool running = true;
@@ -258,6 +265,10 @@ int main(int argc, char* argv[]) {
                 if (event.key.key == SDLK_3) {
                     selectedBlock = BlockType::STONE;
                     std::cout << "Selected: STONE" << std::endl;
+                }
+                if (event.key.key == SDLK_4) {
+                    selectedBlock = BlockType::SAND;
+                    std::cout << "Selected: SAND" << std::endl;
                 }
             }
 
@@ -352,12 +363,8 @@ int main(int argc, char* argv[]) {
         stoneTexture.bind();
         chunkManager.renderType(BlockType::STONE);
 
-        // After creating shader:
-        Lighting lighting;
-        lighting.applyToShader(shader.getID());
-
-        // In render loop (after shader.use()):
-        lighting.applyToShader(shader.getID());
+        sandTexture.bind();
+        chunkManager.renderType(BlockType::SAND);
 
         // Render block outline (only when not paused)
         if (!window.isPaused()) {  // ADD THIS

@@ -96,6 +96,7 @@ void Chunk::buildMesh() {
     buildMeshForType(BlockType::GRASS);
     buildMeshForType(BlockType::DIRT);
     buildMeshForType(BlockType::STONE);
+	buildMeshForType(BlockType::SAND);
 }
 
 void Chunk::buildMeshForType(BlockType targetType) {
@@ -214,10 +215,21 @@ void Chunk::buildMeshForType(BlockType targetType) {
     }
 
     if (indices.size() > 0) {
+        // Has blocks - create new mesh
         MeshData mesh;
         mesh.indexCount = indices.size();
         setupMesh(mesh, vertices, indices);
         meshes[targetType] = mesh;
+    }
+    else {
+        // No blocks of this type - delete old mesh if it exists
+        auto it = meshes.find(targetType);
+        if (it != meshes.end()) {
+            if (it->second.VAO) glDeleteVertexArrays(1, &it->second.VAO);
+            if (it->second.VBO) glDeleteBuffers(1, &it->second.VBO);
+            if (it->second.EBO) glDeleteBuffers(1, &it->second.EBO);
+            meshes.erase(it);
+        }
     }
 }
 

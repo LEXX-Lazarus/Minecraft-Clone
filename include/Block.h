@@ -5,7 +5,8 @@ enum class BlockType {
     AIR = 0,
     GRASS = 1,
     DIRT = 2,
-    STONE = 3
+    STONE = 3,
+	SAND = 4
 };
 
 struct Block {
