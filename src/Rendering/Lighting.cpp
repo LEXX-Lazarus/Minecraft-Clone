@@ -84,15 +84,21 @@ void Lighting::updateColors() {
     // Convert timeOfDay (0-1) to hours (0-24)
     float hours = timeOfDay * 24.0f;
 
-    // Define color palette - VIBRANT AND SATURATED
+    // Define color palette - VIBRANT BUT SMOOTHED
     glm::vec3 midnightSky(0.05f, 0.08f, 0.25f);        // Deep blue night (darkest)
     glm::vec3 predawnSky(0.08f, 0.12f, 0.35f);         // Dark blue before sunrise
     glm::vec3 sunriseSky(1.0f, 0.5f, 0.2f);            // Vibrant orange sunrise
     glm::vec3 morningSky(0.4f, 0.7f, 1.0f);            // Bright morning blue
     glm::vec3 noonSky(0.4f, 0.75f, 1.0f);              // Brightest blue sky
     glm::vec3 afternoonSky(0.5f, 0.75f, 0.95f);        // Slightly warmer afternoon
-    glm::vec3 sunsetSky(1.0f, 0.4f, 0.15f);            // Deep orange/red sunset
-    glm::vec3 duskSky(0.15f, 0.2f, 0.45f);             // Purple dusk
+
+    // Softened sunset orange (LESS RED, MORE GOLD)
+    glm::vec3 sunsetSky(0.95f, 0.52f, 0.28f);          // Smoothed orange sunset
+
+    // NEW: warm buffer between sunset and dusk to remove hard snap
+    glm::vec3 warmDuskSky(0.45f, 0.38f, 0.48f);        // Warm purple-orange dusk
+
+    glm::vec3 duskSky(0.15f, 0.2f, 0.45f);             // Cool purple dusk
 
     glm::vec3 nightLight(0.15f, 0.2f, 0.35f);          // Dim bluish moonlight
     glm::vec3 predawnLight(0.3f, 0.35f, 0.5f);         // Pre-sunrise glow
@@ -104,85 +110,67 @@ void Lighting::updateColors() {
     glm::vec3 duskLight(0.4f, 0.45f, 0.7f);            // Purple dusk light
 
     // Smooth interpolation based on time of day
-    if (hours >= 23.5f || hours < 0.5f) {
-        // 11:30 PM - 12:30 AM: Darkest period (extended)
-        skyColor = midnightSky;
-        sunColor = nightLight;
-        ambientStrength = 0.12f;  // Stay at darkest
-    }
-    else if (hours >= 0.5f && hours < 5.0f) {
-        // 12:30 AM - 5 AM: Dark bluish night
-        float t = glm::smoothstep(0.5f, 5.0f, hours);
+    if (hours >= 0.0f && hours < 5.0f) {
+        // 12 AM - 5 AM: Dark bluish night (MUCH DARKER)
+        float t = glm::smoothstep(0.0f, 5.0f, hours);
         skyColor = glm::mix(midnightSky, predawnSky, t);
         sunColor = glm::mix(nightLight, predawnLight, t);
-        ambientStrength = glm::mix(0.12f, 0.18f, t);
+        ambientStrength = glm::mix(0.12f, 0.18f, t);  // Very dark but visible
     }
     else if (hours >= 5.0f && hours < 6.0f) {
         // 5 AM - 6 AM: Orange starts to appear
         float t = glm::smoothstep(5.0f, 6.0f, hours);
         skyColor = glm::mix(predawnSky, sunriseSky, t);
         sunColor = glm::mix(predawnLight, sunriseLight, t);
-        ambientStrength = glm::mix(0.18f, 0.45f, t);
+        ambientStrength = glm::mix(0.18f, 0.45f, t);  // Rapid brightening
     }
-    else if (hours >= 6.0f && hours < 8.0f) {
-        // 6 AM - 8 AM: Orange sunrise - smoother transition to blue
-        float t = glm::smoothstep(6.0f, 8.0f, hours);
-        // Create intermediate orange-blue blend to avoid grey
-        glm::vec3 orangeBlue = glm::vec3(0.7f, 0.6f, 0.6f);  // Warm transition color
-        skyColor = glm::mix(sunriseSky, orangeBlue, t);
+    else if (hours >= 6.0f && hours < 8.5f) {
+        // 6 AM - 8:30 AM: Sunrise orange easing smoothly into blue (NO GREY)
+        float t = glm::smoothstep(6.0f, 8.5f, hours);
+        skyColor = glm::mix(sunriseSky, morningSky, t);
         sunColor = glm::mix(sunriseLight, morningLight, t);
-        ambientStrength = glm::mix(0.45f, 0.70f, t);
+        ambientStrength = glm::mix(0.45f, 0.75f, t);
     }
-    else if (hours >= 8.0f && hours < 10.0f) {
-        // 8 AM - 10 AM: Transition to morning blue
-        float t = glm::smoothstep(8.0f, 10.0f, hours);
-        glm::vec3 orangeBlue = glm::vec3(0.7f, 0.6f, 0.6f);
-        skyColor = glm::mix(orangeBlue, morningSky, t);
-        sunColor = glm::mix(morningLight, noonLight, t * 0.5f);
-        ambientStrength = glm::mix(0.70f, 0.85f, t);
-    }
-    else if (hours >= 10.0f && hours < 12.0f) {
-        // 10 AM - 12 PM: Reach brightest noon
-        float t = glm::smoothstep(10.0f, 12.0f, hours);
+    else if (hours >= 8.5f && hours < 12.0f) {
+        // 8:30 AM - 12 PM: Clean transition to full blue sky
+        float t = glm::smoothstep(8.5f, 12.0f, hours);
         skyColor = glm::mix(morningSky, noonSky, t);
-        sunColor = glm::mix(noonLight, noonLight, t);
-        ambientStrength = glm::mix(0.85f, 1.0f, t);
+        sunColor = glm::mix(morningLight, noonLight, t);
+        ambientStrength = glm::mix(0.75f, 1.0f, t);  // Brightest at noon
     }
-    else if (hours >= 12.0f && hours < 16.0f) {
-        // 12 PM - 4 PM: Bright blue afternoon (extended)
-        float t = glm::smoothstep(12.0f, 16.0f, hours);
+    else if (hours >= 12.0f && hours < 17.0f) {
+        // 12 PM - 5 PM: Bright blue afternoon, slowly cooling
+        float t = glm::smoothstep(12.0f, 17.0f, hours);
         skyColor = glm::mix(noonSky, afternoonSky, t);
         sunColor = glm::mix(noonLight, afternoonLight, t);
-        ambientStrength = glm::mix(1.0f, 0.70f, t);
+        ambientStrength = glm::mix(1.0f, 0.65f, t);
     }
-    else if (hours >= 16.0f && hours < 17.5f) {
-        // 4 PM - 5:30 PM: Start sunset earlier with smooth transition
-        float t = glm::smoothstep(16.0f, 17.5f, hours);
-        glm::vec3 blueOrange = glm::vec3(0.75f, 0.6f, 0.55f);  // Warm transition color
-        skyColor = glm::mix(afternoonSky, blueOrange, t);
+    else if (hours >= 17.0f && hours < 18.5f) {
+        // 5 PM - 6:30 PM: Golden hour into softened sunset
+        float t = glm::smoothstep(17.0f, 18.5f, hours);
+        skyColor = glm::mix(afternoonSky, sunsetSky, t);
         sunColor = glm::mix(afternoonLight, sunsetLight, t);
-        ambientStrength = glm::mix(0.70f, 0.50f, t);
+        ambientStrength = glm::mix(0.65f, 0.45f, t);
     }
-    else if (hours >= 17.5f && hours < 19.0f) {
-        // 5:30 PM - 7 PM: Full orange sunset
-        float t = glm::smoothstep(17.5f, 19.0f, hours);
-        glm::vec3 blueOrange = glm::vec3(0.75f, 0.6f, 0.55f);
-        skyColor = glm::mix(blueOrange, sunsetSky, t);
-        sunColor = glm::mix(sunsetLight, sunsetLight, t);
-        ambientStrength = glm::mix(0.50f, 0.35f, t);
-    }
-    else if (hours >= 19.0f && hours < 20.0f) {
-        // 7 PM - 8 PM: Dusk transition
-        float t = glm::smoothstep(19.0f, 20.0f, hours);
-        skyColor = glm::mix(sunsetSky, duskSky, t);
+    else if (hours >= 18.5f && hours < 19.6f) {
+        // 6:30 PM - ~7:36 PM: Warm dusk buffer (REMOVES NIGHT SNAP)
+        float t = glm::smoothstep(18.5f, 19.6f, hours);
+        skyColor = glm::mix(sunsetSky, warmDuskSky, t);
         sunColor = glm::mix(sunsetLight, duskLight, t);
-        ambientStrength = glm::mix(0.35f, 0.18f, t);
+        ambientStrength = glm::mix(0.45f, 0.25f, t);
+    }
+    else if (hours >= 19.6f && hours < 21.0f) {
+        // ~7:36 PM - 9 PM: Cool dusk into night
+        float t = glm::smoothstep(19.6f, 21.0f, hours);
+        skyColor = glm::mix(warmDuskSky, duskSky, t);
+        sunColor = glm::mix(duskLight, nightLight, t);
+        ambientStrength = glm::mix(0.25f, 0.18f, t);
     }
     else {
-        // 8 PM - 11:30 PM: Dark blue night
-        float t = glm::smoothstep(20.0f, 23.5f, hours);
+        // 9 PM - 12 AM: Dark blue night (VERY DARK, STABLE)
+        float t = glm::smoothstep(21.0f, 24.0f, hours);
         skyColor = glm::mix(duskSky, midnightSky, t);
-        sunColor = glm::mix(duskLight, nightLight, t);
+        sunColor = glm::mix(nightLight, nightLight, t);
         ambientStrength = glm::mix(0.18f, 0.12f, t);
     }
 

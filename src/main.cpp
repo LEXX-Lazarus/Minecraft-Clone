@@ -272,9 +272,8 @@ int main(int argc, char* argv[]) {
 
     Lighting lighting;
 
-    // COMMENTED OUT FOR NOW - will use later for sun/moon
-    // Skybox skybox;
-    // skybox.initialize("assets/textures/skybox/Sun.png", "assets/textures/skybox/FullMoon.png");
+    Skybox skybox;
+    skybox.initialize();
 
     bool running = true;
     SDL_Event event;
@@ -289,7 +288,9 @@ int main(int argc, char* argv[]) {
         float deltaTime = std::chrono::duration<float>(currentFrameTime - lastFrameTime).count();
         lastFrameTime = currentFrameTime;
 
-        lighting.updateDayNightCycle(deltaTime, 1.0f / 60.0f);
+        // 24 minute cycle 
+        // lighting.updateDayNightCycle(deltaTime, 1.0f / 1440.0f);
+        lighting.updateDayNightCycle(deltaTime, 1.0f / 10.0f);
 
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -432,11 +433,7 @@ int main(int argc, char* argv[]) {
         sandTexture.bind();
         chunkManager.renderType(BlockType::SAND);
 
-        // COMMENTED OUT - will use later for sun/moon rendering
-        // skybox.render(view, projection,
-        //     lighting.getSunDirection(),
-        //     lighting.getMoonDirection(),
-        //     lighting.getSkyColor());
+        skybox.render(view, projection, lighting.getTimeOfDay());
 
         if (!window.isPaused()) {
             blockOutline.render(camera, &chunkManager, view, projection);
