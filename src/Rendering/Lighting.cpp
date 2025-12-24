@@ -66,7 +66,9 @@ void Lighting::updateDayNightCycle(float deltaTime, float speed) {
 
 void Lighting::updateSunMoonPosition() {
     // Convert time to angle (0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset)
-    float angle = timeOfDay * 2.0f * 3.14159265f;
+    // Old: float angle = timeOfDay * 2.0f * 3.14159265f;
+    // New:
+    float angle = (timeOfDay * 2.0f * 3.14159265f) - (3.14159265f / 2.0f);
 
     // Sun position (rises in east, sets in west)
     sunDirection = glm::vec3(

@@ -411,7 +411,7 @@ int main(int argc, char* argv[]) {
             0.0f, 1.0f, 0.0f);
 
         perspectiveMatrix(projection, 70.0f * 3.14159f / 180.0f,
-            (float)window.getWidth() / (float)window.getHeight(), 0.1f, 1000.0f);
+            (float)window.getWidth() / (float)window.getHeight(), 0.1f, 3000.0f);
 
         unsigned int modelLoc = glGetUniformLocation(shader.getID(), "model");
         unsigned int viewLoc = glGetUniformLocation(shader.getID(), "view");
