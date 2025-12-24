@@ -3,6 +3,8 @@
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 #include <iostream>
+#include <sstream>
+#include <iomanip>
 
 DebugOverlay::DebugOverlay()
     : enabled(true), VAO(0), VBO(0), shaderProgram(0),
@@ -19,7 +21,7 @@ DebugOverlay::~DebugOverlay() {
 
 void DebugOverlay::initialize() {
     shaderProgram = createTextShader();
-    loadFont("assets/fonts/Perfect DOS VGA 437.ttf");  
+    loadFont("assets/fonts/Perfect DOS VGA 437.ttf");
     setupMesh();
 }
 
@@ -186,9 +188,29 @@ std::string DebugOverlay::getCardinalDirection(float yaw) {
     else return "South";
 }
 
+std::string DebugOverlay::formatTimeOfDay(float timeOfDay) {
+    // timeOfDay: 0.0 = midnight, 0.25 = 6am, 0.5 = noon, 0.75 = 6pm
+    // Convert to 24-hour time
+    float totalMinutes = timeOfDay * 24.0f * 60.0f;
+    int hours = (int)(totalMinutes / 60.0f);
+    int minutes = (int)(totalMinutes) % 60;
+
+    // Convert to 12-hour format
+    bool isPM = hours >= 12;
+    int displayHours = hours % 12;
+    if (displayHours == 0) displayHours = 12;
+
+    std::ostringstream oss;
+    oss << std::setfill('0') << std::setw(2) << displayHours << ":"
+        << std::setfill('0') << std::setw(2) << minutes << " "
+        << (isPM ? "PM" : "AM");
+
+    return oss.str();
+}
+
 void DebugOverlay::render(int windowWidth, int windowHeight,
     float posX, float posY, float posZ,
-    float yaw, float fps) {
+    float yaw, float fps, float timeOfDay) {
     if (!enabled) return;
 
     glDisable(GL_DEPTH_TEST);
@@ -197,15 +219,18 @@ void DebugOverlay::render(int windowWidth, int windowHeight,
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     std::string posText = "Position: " + std::to_string((int)posX) + ", " +
-        std::to_string((int)posY) + ", " + std::to_string((int)(-posZ));  // Show as positive
-    std::string yawText = "Yaw: " + std::to_string((int)yaw);
+        std::to_string((int)posY) + ", " + std::to_string((int)(-posZ));
     std::string dirText = "Direction: " + getCardinalDirection(yaw);
+    std::string timeText = "Time: " + formatTimeOfDay(timeOfDay);
+    std::string yawText = "Yaw: " + std::to_string((int)yaw);
     std::string fpsText = "FPS: " + std::to_string((int)fps);
 
+    // NEW ORDER: Position, Direction, Time, Yaw, FPS
     renderText(posText, 10, 50, 1.2f, windowWidth, windowHeight);
-    renderText(yawText, 10, 80, 1.2f, windowWidth, windowHeight);
-    renderText(dirText, 10, 110, 1.2f, windowWidth, windowHeight);
-    renderText(fpsText, 10, 140, 1.2f, windowWidth, windowHeight);
+    renderText(dirText, 10, 80, 1.2f, windowWidth, windowHeight);
+    renderText(timeText, 10, 110, 1.2f, windowWidth, windowHeight);
+    renderText(yawText, 10, 140, 1.2f, windowWidth, windowHeight);
+    renderText(fpsText, 10, 170, 1.2f, windowWidth, windowHeight);
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);

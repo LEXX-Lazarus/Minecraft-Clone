@@ -56,3 +56,8 @@
 60	1190	7882483874406391	CMakeFiles/MinecraftClone.dir/src/Chunk.cpp.obj	549d6031d8d8639c
 53	1677	7882483874336371	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	50fbb2d43c5f2007
 1678	2089	7882483890586409	MinecraftClone.exe	fc628ee80db61457
+31	646	7882589172828713	CMakeFiles/MinecraftClone.dir/src/Chunk.cpp.obj	549d6031d8d8639c
+23	759	7882589172743702	CMakeFiles/MinecraftClone.dir/src/Rendering/Lighting.cpp.obj	dbd5111b37178f65
+27	770	7882589172788721	CMakeFiles/MinecraftClone.dir/src/GUI/DebugOverlay.cpp.obj	4b966230605a266e
+18	1024	7882589172698699	CMakeFiles/MinecraftClone.dir/src/main.cpp.obj	50fbb2d43c5f2007
+1024	1613	7882589182753703	MinecraftClone.exe	fc628ee80db61457
