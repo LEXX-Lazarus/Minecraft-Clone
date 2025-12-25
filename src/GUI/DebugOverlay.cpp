@@ -5,6 +5,8 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include "ChunkManager.h" 
+#include "Block.h"
 
 DebugOverlay::DebugOverlay()
     : enabled(true), VAO(0), VBO(0), shaderProgram(0),
@@ -210,7 +212,8 @@ std::string DebugOverlay::formatTimeOfDay(float timeOfDay) {
 
 void DebugOverlay::render(int windowWidth, int windowHeight,
     float posX, float posY, float posZ,
-    float yaw, float fps, float timeOfDay) {
+    float yaw, float fps, float timeOfDay,
+    ChunkManager* chunkManager) {
     if (!enabled) return;
 
     glDisable(GL_DEPTH_TEST);
@@ -225,12 +228,34 @@ void DebugOverlay::render(int windowWidth, int windowHeight,
     std::string yawText = "Yaw: " + std::to_string((int)yaw);
     std::string fpsText = "FPS: " + std::to_string((int)fps);
 
-    // NEW ORDER: Position, Direction, Time, Yaw, FPS
+    // Get light level of block player is standing in
+    std::string lightText = "Light Level: ";
+    if (chunkManager) {
+        // Round to nearest block center instead of floor
+        int blockX = static_cast<int>(std::round(posX));
+        int blockY = static_cast<int>(std::floor(posY));  // Keep floor for Y
+        int blockZ = static_cast<int>(std::round(-posZ));
+
+        Block* block = chunkManager->getBlockAt(blockX, blockY, blockZ);
+        if (block) {
+            lightText += std::to_string((int)block->skyLight);
+            delete block;
+        }
+        else {
+            lightText += "N/A";
+        }
+    }
+    else {
+        lightText += "N/A";
+    }
+
+    // Render all debug info
     renderText(posText, 10, 50, 1.2f, windowWidth, windowHeight);
     renderText(dirText, 10, 80, 1.2f, windowWidth, windowHeight);
     renderText(timeText, 10, 110, 1.2f, windowWidth, windowHeight);
     renderText(yawText, 10, 140, 1.2f, windowWidth, windowHeight);
     renderText(fpsText, 10, 170, 1.2f, windowWidth, windowHeight);
+    renderText(lightText, 10, 200, 1.2f, windowWidth, windowHeight); 
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);

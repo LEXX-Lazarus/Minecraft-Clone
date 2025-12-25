@@ -218,6 +218,9 @@ void ChunkManager::processReadyChunks() {
             chunk->setBlock(localX, mod.y, localZ, mod.type);
         }
 
+        // CALCULATE SKYLIGHT AFTER TERRAIN/MODIFICATIONS ARE SET
+        chunk->calculateSkyLight();
+
         linkChunkNeighbors(chunk);
         chunk->buildMesh();
     }
@@ -320,9 +323,11 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
     std::lock_guard<std::mutex> lock(chunksMutex);
 
     // Rebuild the chunk containing the block
-    long long key = makeKey(chunkX, chunkZ);  // FIX: Use makeKey
+    long long key = makeKey(chunkX, chunkZ);
     auto it = chunks.find(key);
     if (it != chunks.end()) {
+        // RECALCULATE LIGHT BEFORE REBUILDING MESH
+        it->second->calculateSkyLight();
         it->second->buildMesh();
     }
 
@@ -331,23 +336,35 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
     int localZ = worldZ - chunkZ * CHUNK_SIZE_Z;
 
     if (localX == 0) {
-        long long neighborKey = makeKey(chunkX - 1, chunkZ);  // FIX: Use makeKey
+        long long neighborKey = makeKey(chunkX - 1, chunkZ);
         auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
+        if (neighbor != chunks.end()) {
+            neighbor->second->calculateSkyLight();
+            neighbor->second->buildMesh();
+        }
     }
     if (localX == CHUNK_SIZE_X - 1) {
-        long long neighborKey = makeKey(chunkX + 1, chunkZ);  // FIX: Use makeKey
+        long long neighborKey = makeKey(chunkX + 1, chunkZ);
         auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
+        if (neighbor != chunks.end()) {
+            neighbor->second->calculateSkyLight();
+            neighbor->second->buildMesh();
+        }
     }
     if (localZ == 0) {
-        long long neighborKey = makeKey(chunkX, chunkZ - 1);  // FIX: Use makeKey
+        long long neighborKey = makeKey(chunkX, chunkZ - 1);
         auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
+        if (neighbor != chunks.end()) {
+            neighbor->second->calculateSkyLight();
+            neighbor->second->buildMesh();
+        }
     }
     if (localZ == CHUNK_SIZE_Z - 1) {
-        long long neighborKey = makeKey(chunkX, chunkZ + 1);  // FIX: Use makeKey
+        long long neighborKey = makeKey(chunkX, chunkZ + 1);
         auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
+        if (neighbor != chunks.end()) {
+            neighbor->second->calculateSkyLight();
+            neighbor->second->buildMesh();
+        }
     }
 }

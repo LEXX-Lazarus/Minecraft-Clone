@@ -445,7 +445,7 @@ int main(int argc, char* argv[]) {
 
         debugOverlay.render(window.getWidth(), window.getHeight(),
             camera.x, camera.y, camera.z,
-            camera.yaw, fps, lighting.getTimeOfDay());
+            camera.yaw, fps, lighting.getTimeOfDay(), &chunkManager);
 
         if (window.isPaused()) {
             pauseMenu.render(window.getWidth(), window.getHeight());

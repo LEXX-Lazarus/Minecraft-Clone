@@ -15,21 +15,27 @@ constexpr int MAX_HEIGHT = 256;
 class Chunk {
 public:
     int chunkX, chunkZ;
+
     Chunk(int chunkX, int chunkZ);
     ~Chunk();
 
     Block getBlock(int x, int y, int z) const;
-    Block getBlockWorld(int worldX, int worldY, int worldZ) const;  // NEW: cross-chunk lookup
+    Block getBlockWorld(int worldX, int worldY, int worldZ) const;
     void setBlock(int x, int y, int z, BlockType type);
-    void setNeighbor(int direction, Chunk* neighbor);  // NEW: link neighbors
+    void setNeighbor(int direction, Chunk* neighbor);
 
     void buildMesh();
     void render();
     void renderType(BlockType type);
 
+    // Lighting functions
+    void calculateSkyLight();
+    void propagateSkyLight();
+    unsigned char getSkyLight(int x, int y, int z) const;
+
 private:
     Block blocks[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
-    Chunk* neighbors[4];  //0=North, 1=South, 2=East, 3=West
+    Chunk* neighbors[4];  // 0=North, 1=South, 2=East, 3=West
 
     struct MeshData {
         unsigned int VAO = 0;
