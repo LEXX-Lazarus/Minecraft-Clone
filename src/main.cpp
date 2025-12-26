@@ -291,6 +291,7 @@ int main(int argc, char* argv[]) {
         // 24 minute cycle 
         // lighting.updateDayNightCycle(deltaTime, 1.0f / 1440.0f);
         lighting.updateDayNightCycle(deltaTime, 1.0f / 10.0f);
+        chunkManager.setGlobalSkyLightLevel(lighting.getSkyLightLevel());
 
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();

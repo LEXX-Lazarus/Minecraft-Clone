@@ -128,6 +128,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(midnightSky, predawnSky, t);
         sunColor = glm::mix(nightLight, predawnLight, t);
         ambientStrength = glm::mix(0.05f, 0.12f, t);
+        skyLightLevel = static_cast<unsigned char>(glm::mix(1.0f, 2.0f, t));  // LL 1-2
     }
     else if (hours >= 5.0f && hours < 6.5f) {
         // 5 AM - 6:30 AM: Extended orange sunrise
@@ -135,6 +136,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(predawnSky, sunriseSky, t);
         sunColor = glm::mix(predawnLight, sunriseLight, t);
         ambientStrength = glm::mix(0.12f, 0.45f, t);
+        skyLightLevel = static_cast<unsigned char>(glm::mix(2.0f, 8.0f, t));  // LL 2-8
     }
     else if (hours >= 6.5f && hours < 9.5f) {
         // 6:30 AM - 9:30 AM: Gradual transition from orange to morning blue
@@ -142,6 +144,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(sunriseSky, morningSky, t);
         sunColor = glm::mix(sunriseLight, morningLight, t);
         ambientStrength = glm::mix(0.45f, 0.75f, t);
+        skyLightLevel = static_cast<unsigned char>(glm::mix(8.0f, 15.0f, t));  // LL 8-15
     }
     else if (hours >= 9.5f && hours < 12.0f) {
         // 9:30 AM - 12 PM: Morning -> Noon blue
@@ -149,6 +152,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(morningSky, noonSky, t);
         sunColor = glm::mix(morningLight, noonLight, t);
         ambientStrength = glm::mix(0.75f, 0.9f, t);
+        skyLightLevel = 15;  // LL 15-15
     }
     else if (hours >= 12.0f && hours < 17.0f) {
         // 12 PM - 5 PM: Afternoon blue, slowly darkening
@@ -156,6 +160,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(noonSky, afternoonSky, t);
         sunColor = glm::mix(noonLight, afternoonLight, t);
         ambientStrength = glm::mix(0.9f, 0.6f, t);
+        skyLightLevel = 15;  // LL 15-15
     }
     else if (hours >= 17.0f && hours < 20.0f) {
         // 5 PM - 8 PM: Extended orange sunset
@@ -163,6 +168,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(afternoonSky, sunsetSky, t);
         sunColor = glm::mix(afternoonLight, sunsetLight, t);
         ambientStrength = glm::mix(0.6f, 0.35f, t);
+        skyLightLevel = static_cast<unsigned char>(glm::mix(14.0f, 8.0f, t));  // LL 15-8
     }
     else if (hours >= 20.0f && hours < 21.0f) {
         // 8 PM - 9 PM: Dusk transition
@@ -170,6 +176,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(sunsetSky, duskSky, t);
         sunColor = glm::mix(sunsetLight, duskLight, t);
         ambientStrength = glm::mix(0.35f, 0.12f, t);
+        skyLightLevel = static_cast<unsigned char>(glm::mix(8.0f, 2.0f, t));  // LL 8-2
     }
     else {
         // 9 PM - 12 AM: Night
@@ -177,6 +184,7 @@ void Lighting::updateColors() {
         skyColor = mixSaturated(duskSky, midnightSky, t);
         sunColor = glm::mix(duskLight, nightLight, t);
         ambientStrength = 0.05f;
+        skyLightLevel = static_cast<unsigned char>(glm::mix(2.0f, 1.0f, t));  // LL 2-1
     }
 
     // -----------------------------

@@ -83,6 +83,26 @@ void ChunkManager::update(float playerX, float playerZ) {
 
     processReadyChunks();
 
+    // Update player's chunk AND neighbors when light changes
+    if (globalSkyLightLevel != lastSkyLightLevel) {
+        lastSkyLightLevel = globalSkyLightLevel;
+
+        std::lock_guard<std::mutex> lock(chunksMutex);
+
+        // Update player's chunk + 8 neighbors (3x3 grid)
+        // Use FULL recalculation to preserve propagation, but DON'T rebuild mesh yet
+        for (int dx = -1; dx <= 1; dx++) {
+            for (int dz = -1; dz <= 1; dz++) {
+                long long key = makeKey(playerChunkX + dx, playerChunkZ + dz);
+                auto it = chunks.find(key);
+                if (it != chunks.end()) {
+                    it->second->calculateSkyLight(globalSkyLightLevel); // FULL calculation
+                    // DON'T call buildMesh() here - we're not rendering light yet!
+                }
+            }
+        }
+    }
+
     // Auto-save check
     if (worldSave) {
         worldSave->autoSaveCheck();
@@ -219,8 +239,7 @@ void ChunkManager::processReadyChunks() {
         }
 
         // CALCULATE SKYLIGHT AFTER TERRAIN/MODIFICATIONS ARE SET
-        chunk->calculateSkyLight();
-
+        chunk->calculateSkyLight(globalSkyLightLevel);  // Pass the global level
         linkChunkNeighbors(chunk);
         chunk->buildMesh();
     }
@@ -326,8 +345,8 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
     long long key = makeKey(chunkX, chunkZ);
     auto it = chunks.find(key);
     if (it != chunks.end()) {
-        // RECALCULATE LIGHT BEFORE REBUILDING MESH
-        it->second->calculateSkyLight();
+        // RECALCULATE LIGHT BEFORE REBUILDING MESH - USE GLOBAL LEVEL!
+        it->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
         it->second->buildMesh();
     }
 
@@ -339,7 +358,7 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
         long long neighborKey = makeKey(chunkX - 1, chunkZ);
         auto neighbor = chunks.find(neighborKey);
         if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight();
+            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
             neighbor->second->buildMesh();
         }
     }
@@ -347,7 +366,7 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
         long long neighborKey = makeKey(chunkX + 1, chunkZ);
         auto neighbor = chunks.find(neighborKey);
         if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight();
+            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
             neighbor->second->buildMesh();
         }
     }
@@ -355,7 +374,7 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
         long long neighborKey = makeKey(chunkX, chunkZ - 1);
         auto neighbor = chunks.find(neighborKey);
         if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight();
+            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
             neighbor->second->buildMesh();
         }
     }
@@ -363,7 +382,7 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
         long long neighborKey = makeKey(chunkX, chunkZ + 1);
         auto neighbor = chunks.find(neighborKey);
         if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight();
+            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
             neighbor->second->buildMesh();
         }
     }

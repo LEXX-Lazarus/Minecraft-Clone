@@ -40,6 +40,9 @@ public:
     bool setBlockAt(int worldX, int worldY, int worldZ, BlockType type);
     void rebuildChunkMeshAt(int worldX, int worldY, int worldZ);
 
+	// Skylight level management
+    void setGlobalSkyLightLevel(unsigned char level) { globalSkyLightLevel = level; }
+
 private:
     // =============================
     // Threaded generation
@@ -59,7 +62,6 @@ private:
 
     long long makeKey(int x, int z) const;
 
-private:
     std::unique_ptr<WorldSave> worldSave;
 
     int renderDistance;
@@ -80,4 +82,8 @@ private:
     std::condition_variable queueCV;
     std::thread generationThread;
     bool shouldStop;
+
+    // Skylight level management
+    unsigned char globalSkyLightLevel = 15;
+    unsigned char lastSkyLightLevel = 15;
 };

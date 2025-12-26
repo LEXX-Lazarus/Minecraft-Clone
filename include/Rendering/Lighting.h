@@ -27,6 +27,7 @@ public:
     glm::vec3 getSunDirection() const { return sunDirection; }
     glm::vec3 getMoonDirection() const { return moonDirection; }
     glm::vec3 getSkyColor() const { return skyColor; }
+    unsigned char getSkyLightLevel() const { return skyLightLevel; }
 
 private:
     // Shadow mapping
@@ -37,6 +38,7 @@ private:
 
     // Day/night cycle
     float timeOfDay;  // 0.0 to 1.0
+    unsigned char skyLightLevel = 15;
 
     // Sun/Moon properties
     glm::vec3 sunDirection;

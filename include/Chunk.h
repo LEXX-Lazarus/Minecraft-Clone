@@ -29,8 +29,9 @@ public:
     void renderType(BlockType type);
 
     // Lighting functions
-    void calculateSkyLight();
+    void calculateSkyLight(unsigned char maxSkyLight = 15);
     void propagateSkyLight();
+    void updateSkyLightLevel(unsigned char newMaxSkyLight);
     unsigned char getSkyLight(int x, int y, int z) const;
 
 private:

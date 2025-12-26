@@ -93,7 +93,7 @@ void Chunk::setNeighbor(int direction, Chunk* neighbor) {
     }
 }
 
-void Chunk::calculateSkyLight() {
+void Chunk::calculateSkyLight(unsigned char maxSkyLight) {
     // Step 1: Initialize ALL blocks to 0
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -106,28 +106,24 @@ void Chunk::calculateSkyLight() {
     // Step 2: Direct skylight - scan each column from top
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-            // Start from top, go down until we hit solid
             for (int y = CHUNK_SIZE_Y - 1; y >= 0; y--) {
                 if (blocks[x][y][z].isAir()) {
-                    blocks[x][y][z].skyLight = 15;
+                    blocks[x][y][z].skyLight = maxSkyLight;  // Use the parameter
                 }
                 else {
-                    // Hit solid block, stop this column
                     break;
                 }
             }
         }
     }
 
-    // Step 3: Propagate horizontally and into caves
+    // Step 3: Propagate skylight
     propagateSkyLight();
 }
 
 void Chunk::propagateSkyLight() {
-    // OPTIMIZATION: Use static 3D array to track if block was already added to queue
     static bool queued[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
 
-    // Clear queued array
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
@@ -136,37 +132,46 @@ void Chunk::propagateSkyLight() {
         }
     }
 
-    // Single queue approach - process in order
     std::queue<std::tuple<int, int, int, unsigned char>> lightQueue;
 
-    // OPTIMIZATION: Only add boundary blocks (blocks next to unlit areas)
+    // Find max light in chunk
+    unsigned char maxLightInChunk = 0;
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                if (blocks[x][y][z].skyLight != 15 || !blocks[x][y][z].isAir()) continue;
+                if (blocks[x][y][z].skyLight > maxLightInChunk) {
+                    maxLightInChunk = blocks[x][y][z].skyLight;
+                }
+            }
+        }
+    }
 
-                // Check if this block borders a dark area (optimization)
+    // Add boundary blocks
+    for (int x = 0; x < CHUNK_SIZE_X; x++) {
+        for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+                if (blocks[x][y][z].skyLight != maxLightInChunk || !blocks[x][y][z].isAir()) continue;
+
                 bool isBoundary = false;
 
-                // Check 6 neighbors
-                if (x > 0 && blocks[x - 1][y][z].isAir() && blocks[x - 1][y][z].skyLight < 15) isBoundary = true;
-                else if (x < CHUNK_SIZE_X - 1 && blocks[x + 1][y][z].isAir() && blocks[x + 1][y][z].skyLight < 15) isBoundary = true;
-                else if (y > 0 && blocks[x][y - 1][z].isAir() && blocks[x][y - 1][z].skyLight < 15) isBoundary = true;
-                else if (y < CHUNK_SIZE_Y - 1 && blocks[x][y + 1][z].isAir() && blocks[x][y + 1][z].skyLight < 15) isBoundary = true;
-                else if (z > 0 && blocks[x][y][z - 1].isAir() && blocks[x][y][z - 1].skyLight < 15) isBoundary = true;
-                else if (z < CHUNK_SIZE_Z - 1 && blocks[x][y][z + 1].isAir() && blocks[x][y][z + 1].skyLight < 15) isBoundary = true;
+                if (x > 0 && blocks[x - 1][y][z].isAir() && blocks[x - 1][y][z].skyLight < maxLightInChunk) isBoundary = true;
+                else if (x < CHUNK_SIZE_X - 1 && blocks[x + 1][y][z].isAir() && blocks[x + 1][y][z].skyLight < maxLightInChunk) isBoundary = true;
+                else if (y > 0 && blocks[x][y - 1][z].isAir() && blocks[x][y - 1][z].skyLight < maxLightInChunk) isBoundary = true;
+                else if (y < CHUNK_SIZE_Y - 1 && blocks[x][y + 1][z].isAir() && blocks[x][y + 1][z].skyLight < maxLightInChunk) isBoundary = true;
+                else if (z > 0 && blocks[x][y][z - 1].isAir() && blocks[x][y][z - 1].skyLight < maxLightInChunk) isBoundary = true;
+                else if (z < CHUNK_SIZE_Z - 1 && blocks[x][y][z + 1].isAir() && blocks[x][y][z + 1].skyLight < maxLightInChunk) isBoundary = true;
 
                 if (isBoundary) {
-                    lightQueue.push(std::make_tuple(x, y, z, 15));
+                    lightQueue.push(std::make_tuple(x, y, z, maxLightInChunk));
                     queued[x][y][z] = true;
                 }
             }
         }
     }
 
-    // BFS propagation with early termination
+    // Rest of propagation stays the same...
     int processed = 0;
-    const int MAX_PROCESS = 5000; // Safety limit per chunk
+    const int MAX_PROCESS = 5000;
 
     while (!lightQueue.empty() && processed < MAX_PROCESS) {
         processed++;
@@ -174,14 +179,12 @@ void Chunk::propagateSkyLight() {
         auto [x, y, z, currentLight] = lightQueue.front();
         lightQueue.pop();
 
-        // Recheck actual light (might have been updated)
         currentLight = blocks[x][y][z].skyLight;
 
         if (currentLight <= 1) continue;
 
         unsigned char spreadLight = currentLight - 1;
 
-        // Check 6 neighbors
         int dx[] = { 1, -1, 0, 0, 0, 0 };
         int dy[] = { 0, 0, 1, -1, 0, 0 };
         int dz[] = { 0, 0, 0, 0, 1, -1 };
@@ -191,29 +194,62 @@ void Chunk::propagateSkyLight() {
             int ny = y + dy[i];
             int nz = z + dz[i];
 
-            // Bounds check
             if (nx < 0 || nx >= CHUNK_SIZE_X ||
                 ny < 0 || ny >= CHUNK_SIZE_Y ||
                 nz < 0 || nz >= CHUNK_SIZE_Z) {
                 continue;
             }
 
-            // Already queued - skip
             if (queued[nx][ny][nz]) continue;
 
             Block& neighbor = blocks[nx][ny][nz];
 
-            // Can only light air
             if (!neighbor.isAir()) continue;
 
-            // Update if brighter
             if (spreadLight > neighbor.skyLight) {
                 neighbor.skyLight = spreadLight;
 
-                // Only continue if light is bright enough
                 if (spreadLight > 2) {
                     lightQueue.push(std::make_tuple(nx, ny, nz, spreadLight));
                     queued[nx][ny][nz] = true;
+                }
+            }
+        }
+    }
+}
+
+void Chunk::updateSkyLightLevel(unsigned char newMaxSkyLight) {
+    // Find current max light in chunk
+    unsigned char currentMaxLight = 0;
+    for (int x = 0; x < CHUNK_SIZE_X; x++) {
+        for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+                if (blocks[x][y][z].skyLight > currentMaxLight) {
+                    currentMaxLight = blocks[x][y][z].skyLight;
+                }
+            }
+        }
+    }
+
+    // If no light, nothing to update
+    if (currentMaxLight == 0) return;
+
+    // Calculate ratio
+    float ratio = static_cast<float>(newMaxSkyLight) / static_cast<float>(currentMaxLight);
+
+    // FAST: Just multiply all light values by the ratio
+    for (int x = 0; x < CHUNK_SIZE_X; x++) {
+        for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+                if (blocks[x][y][z].skyLight > 0) {
+                    float newLightFloat = blocks[x][y][z].skyLight * ratio;
+                    unsigned char newLight = static_cast<unsigned char>(std::round(newLightFloat)); // Use round instead of casting
+
+                    // Clamp between 1 and 15 (not 0!)
+                    if (newLight < 1) newLight = 1;
+                    if (newLight > 15) newLight = 15;
+
+                    blocks[x][y][z].skyLight = newLight;
                 }
             }
         }
