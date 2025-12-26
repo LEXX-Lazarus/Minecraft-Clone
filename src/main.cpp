@@ -23,7 +23,6 @@
 #include "Rendering/Renderer.h"
 #include "Rendering/Texture.h"
 #include "Rendering/Shader.h"
-#include "Rendering/Lighting.h"
 #include "Rendering/Skybox.h"
 #include "Window.h"
 #include "GUI/PauseMenu.h"
@@ -35,129 +34,62 @@
 #include "TerrainGenerator.h"
 #include "ChunkManager.h"
 
-// Updated vertex shader
+// Vertex shader with light level input
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 layout (location = 2) in vec3 aNormal;
+layout (location = 3) in float aLightLevel;  // NEW: Light level input
 
 out vec2 texCoord;
-out vec3 fragPos;
 out vec3 normal;
-out vec4 fragPosLightSpace;
+out float lightLevel;  // Pass to fragment shader
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-uniform mat4 lightSpaceMatrix;
 
 void main()
 {
-    fragPos = aPos;
-    normal = aNormal;
     texCoord = aTexCoord;
-    fragPosLightSpace = lightSpaceMatrix * vec4(aPos, 1.0);
+    normal = aNormal;
+    lightLevel = aLightLevel;  // Pass through to fragment shader
     gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
 )";
 
-// Updated fragment shader with shadows
+// Fragment shader that uses light level for brightness
 const char* fragmentShaderSource = R"(
 #version 330 core
 out vec4 FragColor;
 
 in vec2 texCoord;
-in vec3 fragPos;
 in vec3 normal;
-in vec4 fragPosLightSpace;
+in float lightLevel;  // Receive from vertex shader (0.0 to 1.0)
 
 uniform sampler2D ourTexture;
-uniform sampler2D shadowMap;
-uniform vec3 sunDirection;
-uniform vec3 sunColor;
-uniform vec3 skyColor;
-uniform float ambientStrength;
-uniform vec3 viewPos;
-uniform int isDay;
-
-float ShadowCalculation(vec4 fragPosLightSpace, vec3 normal, vec3 lightDir)
-{
-    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    projCoords = projCoords * 0.5 + 0.5;
-    
-    if(projCoords.z > 1.0)
-        return 0.0;
-    
-    float currentDepth = projCoords.z;
-    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.001);
-    
-    float shadow = 0.0;
-    vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
-    for(int x = -1; x <= 1; ++x)
-    {
-        for(int y = -1; y <= 1; ++y)
-        {
-            float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
-            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;
-        }
-    }
-    shadow /= 9.0;
-    
-    return shadow;
-}
 
 void main()
 {
     vec4 texColor = texture(ourTexture, texCoord);
     vec3 norm = normalize(normal);
     
-    // BSL-STYLE: White ambient light (keeps block colors accurate)
-    vec3 ambient = vec3(ambientStrength);
+    // MINECRAFT-STYLE LIGHTING:
+    // Use exponential curve for more natural brightness falloff
+    float brightness = pow(lightLevel, 2.2) * 0.95 + 0.05;
     
-    // Diffuse with subtle sunColor tint
-    float diff = max(dot(norm, sunDirection), 0.0);
-    vec3 diffuse = diff * sunColor * 0.6;  // Reduced sun color influence
+    // Ambient occlusion (face darkening) for depth
+    float ao = 1.0;
+    if (norm.y > 0.9) ao = 1.0;        // Top face - brightest
+    else if (norm.y < -0.9) ao = 0.5;  // Bottom face - darkest
+    else ao = 0.8;                      // Side faces - medium
     
-    // Shadow
-    float shadow = ShadowCalculation(fragPosLightSpace, norm, sunDirection);
-    
-    // Combine: ambient (white) + directional light (slightly tinted)
-    vec3 lighting = ambient + (1.0 - shadow * 0.5) * diffuse;
-    
-    // Face-based shading (BSL-style directional brightness)
-    float topFace = max(norm.y, 0.0);           // Top faces brighter
-    float sideFace = abs(norm.x) + abs(norm.z); // Side faces
-    float bottomFace = max(-norm.y, 0.0);       // Bottom faces darker
-    
-    float faceShading = mix(0.6, 1.0, topFace) * 
-                        mix(1.0, 0.85, sideFace * 0.5) * 
-                        mix(1.0, 0.5, bottomFace);
-    
-    lighting *= faceShading;
-    
-    // Underground darkening (very subtle)
-    float underground = smoothstep(50.0, 120.0, fragPos.y);
-    lighting = mix(lighting * 0.4, lighting, underground);
-    
-    // Apply lighting to texture
+    // Apply lighting
+    vec3 lighting = vec3(brightness * ao);
     vec3 result = lighting * texColor.rgb;
     
-    // OPTIONAL: Slight atmospheric tint (very subtle)
-    float atmosphereInfluence = 0.05;  // 5% color tint
-    result = mix(result, result * skyColor, atmosphereInfluence);
-    
     FragColor = vec4(result, texColor.a);
-}
-)";
-
-// Shadow map fragment shader (empty - depth only)
-const char* shadowFragmentShader = R"(
-#version 330 core
-
-void main()
-{
-    // Depth is automatically written
 }
 )";
 
@@ -274,8 +206,6 @@ int main(int argc, char* argv[]) {
     BlockInteraction blockInteraction;
     BlockType selectedBlock = BlockType::STONE;
 
-    Lighting lighting;
-
     Skybox skybox;
     skybox.initialize();
 
@@ -291,11 +221,6 @@ int main(int argc, char* argv[]) {
         auto currentFrameTime = std::chrono::high_resolution_clock::now();
         float deltaTime = std::chrono::duration<float>(currentFrameTime - lastFrameTime).count();
         lastFrameTime = currentFrameTime;
-
-        // 24 minute cycle 
-        // lighting.updateDayNightCycle(deltaTime, 1.0f / 1440.0f);
-        lighting.updateDayNightCycle(deltaTime, 1.0f / 10.0f);
-        chunkManager.setGlobalSkyLightLevel(lighting.getSkyLightLevel());
 
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -417,13 +342,11 @@ int main(int argc, char* argv[]) {
             chunkManager.update(player.x, player.z);
         }
 
-        // GET SKY COLOR FROM LIGHTING AND SET AS BACKGROUND
-        glm::vec3 skyColor = lighting.getSkyColor();
-        glClearColor(skyColor.r, skyColor.g, skyColor.b, 1.0f);
+        // Simple sky blue background
+        glClearColor(0.53f, 0.81f, 0.98f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
-        lighting.applyToShader(shader.getID(), glm::vec3(camera.x, camera.y, camera.z));
 
         float model[16], view[16], projection[16];
         identityMatrix(model);
@@ -456,7 +379,7 @@ int main(int argc, char* argv[]) {
         sandTexture.bind();
         chunkManager.renderType(BlockType::SAND);
 
-        skybox.render(view, projection, lighting.getTimeOfDay());
+        skybox.render(view, projection, 0.5f);  // Fixed noon time
 
         if (!window.isPaused()) {
             blockOutline.render(camera, &chunkManager, view, projection);
@@ -472,7 +395,7 @@ int main(int argc, char* argv[]) {
 
         debugOverlay.render(window.getWidth(), window.getHeight(),
             camera.x, camera.y, camera.z,
-            camera.yaw, fps, lighting.getTimeOfDay(), &chunkManager);
+            camera.yaw, fps, 0.5f, &chunkManager);
 
         if (window.isPaused()) {
             pauseMenu.render(window.getWidth(), window.getHeight());

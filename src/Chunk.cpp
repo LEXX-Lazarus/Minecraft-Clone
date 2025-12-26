@@ -93,6 +93,18 @@ void Chunk::setNeighbor(int direction, Chunk* neighbor) {
     }
 }
 
+Chunk* Chunk::getNeighbor(int direction) const {
+    if (direction < 0 || direction >= 4) return nullptr;
+    return neighbors[direction];
+}
+
+unsigned char Chunk::getSkyLight(int x, int y, int z) const {
+    if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
+        return 0;
+    }
+    return blocks[x][y][z].skyLight;
+}
+
 void Chunk::calculateSkyLight(unsigned char maxSkyLight) {
     // Step 1: Initialize ALL blocks to 0
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
@@ -108,7 +120,7 @@ void Chunk::calculateSkyLight(unsigned char maxSkyLight) {
         for (int z = 0; z < CHUNK_SIZE_Z; z++) {
             for (int y = CHUNK_SIZE_Y - 1; y >= 0; y--) {
                 if (blocks[x][y][z].isAir()) {
-                    blocks[x][y][z].skyLight = maxSkyLight;  // Use the parameter
+                    blocks[x][y][z].skyLight = maxSkyLight;
                 }
                 else {
                     break;
@@ -117,7 +129,7 @@ void Chunk::calculateSkyLight(unsigned char maxSkyLight) {
         }
     }
 
-    // Step 3: Propagate skylight
+    // Step 3: Propagate within chunk
     propagateSkyLight();
 }
 
@@ -146,7 +158,7 @@ void Chunk::propagateSkyLight() {
         }
     }
 
-    // Add boundary blocks
+    // Add boundary blocks with max light
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
@@ -154,12 +166,34 @@ void Chunk::propagateSkyLight() {
 
                 bool isBoundary = false;
 
-                if (x > 0 && blocks[x - 1][y][z].isAir() && blocks[x - 1][y][z].skyLight < maxLightInChunk) isBoundary = true;
-                else if (x < CHUNK_SIZE_X - 1 && blocks[x + 1][y][z].isAir() && blocks[x + 1][y][z].skyLight < maxLightInChunk) isBoundary = true;
-                else if (y > 0 && blocks[x][y - 1][z].isAir() && blocks[x][y - 1][z].skyLight < maxLightInChunk) isBoundary = true;
-                else if (y < CHUNK_SIZE_Y - 1 && blocks[x][y + 1][z].isAir() && blocks[x][y + 1][z].skyLight < maxLightInChunk) isBoundary = true;
-                else if (z > 0 && blocks[x][y][z - 1].isAir() && blocks[x][y][z - 1].skyLight < maxLightInChunk) isBoundary = true;
-                else if (z < CHUNK_SIZE_Z - 1 && blocks[x][y][z + 1].isAir() && blocks[x][y][z + 1].skyLight < maxLightInChunk) isBoundary = true;
+                int worldX = chunkX * CHUNK_SIZE_X + x;
+                int worldY = y;
+                int worldZ = chunkZ * CHUNK_SIZE_Z + z;
+
+                // Check all 6 neighbors using getBlockWorld
+                Block neighbor;
+
+                neighbor = getBlockWorld(worldX - 1, worldY, worldZ);
+                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
+
+                neighbor = getBlockWorld(worldX + 1, worldY, worldZ);
+                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
+
+                if (worldY > 0) {
+                    neighbor = getBlockWorld(worldX, worldY - 1, worldZ);
+                    if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
+                }
+
+                if (worldY < CHUNK_SIZE_Y - 1) {
+                    neighbor = getBlockWorld(worldX, worldY + 1, worldZ);
+                    if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
+                }
+
+                neighbor = getBlockWorld(worldX, worldY, worldZ - 1);
+                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
+
+                neighbor = getBlockWorld(worldX, worldY, worldZ + 1);
+                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
 
                 if (isBoundary) {
                     lightQueue.push(std::make_tuple(x, y, z, maxLightInChunk));
@@ -169,9 +203,9 @@ void Chunk::propagateSkyLight() {
         }
     }
 
-    // Rest of propagation stays the same...
+    // Propagate light within this chunk
     int processed = 0;
-    const int MAX_PROCESS = 5000;
+    const int MAX_PROCESS = 10000;
 
     while (!lightQueue.empty() && processed < MAX_PROCESS) {
         processed++;
@@ -194,6 +228,7 @@ void Chunk::propagateSkyLight() {
             int ny = y + dy[i];
             int nz = z + dz[i];
 
+            // Stay within this chunk only
             if (nx < 0 || nx >= CHUNK_SIZE_X ||
                 ny < 0 || ny >= CHUNK_SIZE_Y ||
                 nz < 0 || nz >= CHUNK_SIZE_Z) {
@@ -218,8 +253,77 @@ void Chunk::propagateSkyLight() {
     }
 }
 
+// NEW FUNCTION: Propagate light across chunk boundaries
+void Chunk::propagateSkyLightCrossChunk() {
+    // For each face of the chunk, check if we have bright light at the edge
+    // If yes, propagate it into the neighbor chunk
+
+    // North face (z = CHUNK_SIZE_Z - 1)
+    if (neighbors[0]) {
+        for (int x = 0; x < CHUNK_SIZE_X; x++) {
+            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+                unsigned char myLight = blocks[x][y][CHUNK_SIZE_Z - 1].skyLight;
+                if (myLight > 1 && blocks[x][y][CHUNK_SIZE_Z - 1].isAir()) {
+                    unsigned char spreadLight = myLight - 1;
+                    Block neighborBlock = neighbors[0]->getBlock(x, y, 0);
+                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
+                        neighbors[0]->blocks[x][y][0].skyLight = spreadLight;
+                    }
+                }
+            }
+        }
+    }
+
+    // South face (z = 0)
+    if (neighbors[1]) {
+        for (int x = 0; x < CHUNK_SIZE_X; x++) {
+            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+                unsigned char myLight = blocks[x][y][0].skyLight;
+                if (myLight > 1 && blocks[x][y][0].isAir()) {
+                    unsigned char spreadLight = myLight - 1;
+                    Block neighborBlock = neighbors[1]->getBlock(x, y, CHUNK_SIZE_Z - 1);
+                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
+                        neighbors[1]->blocks[x][y][CHUNK_SIZE_Z - 1].skyLight = spreadLight;
+                    }
+                }
+            }
+        }
+    }
+
+    // East face (x = CHUNK_SIZE_X - 1)
+    if (neighbors[2]) {
+        for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+                unsigned char myLight = blocks[CHUNK_SIZE_X - 1][y][z].skyLight;
+                if (myLight > 1 && blocks[CHUNK_SIZE_X - 1][y][z].isAir()) {
+                    unsigned char spreadLight = myLight - 1;
+                    Block neighborBlock = neighbors[2]->getBlock(0, y, z);
+                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
+                        neighbors[2]->blocks[0][y][z].skyLight = spreadLight;
+                    }
+                }
+            }
+        }
+    }
+
+    // West face (x = 0)
+    if (neighbors[3]) {
+        for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+                unsigned char myLight = blocks[0][y][z].skyLight;
+                if (myLight > 1 && blocks[0][y][z].isAir()) {
+                    unsigned char spreadLight = myLight - 1;
+                    Block neighborBlock = neighbors[3]->getBlock(CHUNK_SIZE_X - 1, y, z);
+                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
+                        neighbors[3]->blocks[CHUNK_SIZE_X - 1][y][z].skyLight = spreadLight;
+                    }
+                }
+            }
+        }
+    }
+}
+
 void Chunk::updateSkyLightLevel(unsigned char newMaxSkyLight) {
-    // Find current max light in chunk
     unsigned char currentMaxLight = 0;
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -231,21 +335,17 @@ void Chunk::updateSkyLightLevel(unsigned char newMaxSkyLight) {
         }
     }
 
-    // If no light, nothing to update
     if (currentMaxLight == 0) return;
 
-    // Calculate ratio
     float ratio = static_cast<float>(newMaxSkyLight) / static_cast<float>(currentMaxLight);
 
-    // FAST: Just multiply all light values by the ratio
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
                 if (blocks[x][y][z].skyLight > 0) {
                     float newLightFloat = blocks[x][y][z].skyLight * ratio;
-                    unsigned char newLight = static_cast<unsigned char>(std::round(newLightFloat)); // Use round instead of casting
+                    unsigned char newLight = static_cast<unsigned char>(std::round(newLightFloat));
 
-                    // Clamp between 1 and 15 (not 0!)
                     if (newLight < 1) newLight = 1;
                     if (newLight > 15) newLight = 15;
 
@@ -257,11 +357,10 @@ void Chunk::updateSkyLightLevel(unsigned char newMaxSkyLight) {
 }
 
 void Chunk::buildMesh() {
-    // Build separate mesh for each block type
     buildMeshForType(BlockType::GRASS);
     buildMeshForType(BlockType::DIRT);
     buildMeshForType(BlockType::STONE);
-	buildMeshForType(BlockType::SAND);
+    buildMeshForType(BlockType::SAND);
 }
 
 void Chunk::buildMeshForType(BlockType targetType) {
@@ -276,23 +375,24 @@ void Chunk::buildMeshForType(BlockType targetType) {
 
                 if (block.isAir() || block.type != targetType) continue;
 
-                // World position of this block for rendering
                 float worldX = chunkX * CHUNK_SIZE_X + x;
                 float worldY = y;
                 float worldZ = -(chunkZ * CHUNK_SIZE_Z + z);
 
-                // World block coordinates for neighbor checking
                 int blockWorldX = chunkX * CHUNK_SIZE_X + x;
                 int blockWorldY = y;
                 int blockWorldZ = chunkZ * CHUNK_SIZE_Z + z;
 
-                // Top face (normal: 0, 1, 0)
+                // Top face
                 if (getBlockWorld(blockWorldX, blockWorldY + 1, blockWorldZ).isAir()) {
+                    Block airBlock = getBlockWorld(blockWorldX, blockWorldY + 1, blockWorldZ);
+                    float lightLevel = airBlock.skyLight / 15.0f;
+
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,  0.0f, 1.0f, 0.0f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,  0.0f, 1.0f, 0.0f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.5f,  1.0f,    0.0f, 1.0f, 0.0f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.25f, 1.0f,    0.0f, 1.0f, 0.0f
+                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,  0.0f, 1.0f, 0.0f,  lightLevel,
+                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,  0.0f, 1.0f, 0.0f,  lightLevel,
+                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.5f,  1.0f,    0.0f, 1.0f, 0.0f,  lightLevel,
+                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.25f, 1.0f,    0.0f, 1.0f, 0.0f,  lightLevel
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -301,13 +401,16 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // Bottom face (normal: 0, -1, 0)
+                // Bottom face
                 if (getBlockWorld(blockWorldX, blockWorldY - 1, blockWorldZ).isAir()) {
+                    Block airBlock = getBlockWorld(blockWorldX, blockWorldY - 1, blockWorldZ);
+                    float lightLevel = airBlock.skyLight / 15.0f;
+
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.25f, 0.0f,    0.0f, -1.0f, 0.0f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.5f,  0.0f,    0.0f, -1.0f, 0.0f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,  0.0f, -1.0f, 0.0f,
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,  0.0f, -1.0f, 0.0f
+                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.25f, 0.0f,    0.0f, -1.0f, 0.0f,  lightLevel,
+                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.5f,  0.0f,    0.0f, -1.0f, 0.0f,  lightLevel,
+                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,  0.0f, -1.0f, 0.0f,  lightLevel,
+                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,  0.0f, -1.0f, 0.0f,  lightLevel
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -316,13 +419,16 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // South face (normal: 0, 0, -1)
+                // South face
                 if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ - 1).isAir()) {
+                    Block airBlock = getBlockWorld(blockWorldX, blockWorldY, blockWorldZ - 1);
+                    float lightLevel = airBlock.skyLight / 15.0f;
+
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,  0.0f, 0.0f, -1.0f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,  0.0f, 0.0f, -1.0f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,  0.0f, 0.0f, -1.0f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,  0.0f, 0.0f, -1.0f
+                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,  0.0f, 0.0f, -1.0f,  lightLevel,
+                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,  0.0f, 0.0f, -1.0f,  lightLevel,
+                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,  0.0f, 0.0f, -1.0f,  lightLevel,
+                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,  0.0f, 0.0f, -1.0f,  lightLevel
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -331,13 +437,16 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // North face (normal: 0, 0, 1)
+                // North face
                 if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ + 1).isAir()) {
+                    Block airBlock = getBlockWorld(blockWorldX, blockWorldY, blockWorldZ + 1);
+                    float lightLevel = airBlock.skyLight / 15.0f;
+
                     vertices.insert(vertices.end(), {
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,  0.0f, 0.0f, 1.0f,
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   1.0f,  0.333f,  0.0f, 0.0f, 1.0f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   1.0f,  0.666f,  0.0f, 0.0f, 1.0f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.75f, 0.666f,  0.0f, 0.0f, 1.0f
+                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,  0.0f, 0.0f, 1.0f,  lightLevel,
+                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   1.0f,  0.333f,  0.0f, 0.0f, 1.0f,  lightLevel,
+                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   1.0f,  0.666f,  0.0f, 0.0f, 1.0f,  lightLevel,
+                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.75f, 0.666f,  0.0f, 0.0f, 1.0f,  lightLevel
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -346,13 +455,16 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // East face (normal: 1, 0, 0)
+                // East face
                 if (getBlockWorld(blockWorldX + 1, blockWorldY, blockWorldZ).isAir()) {
+                    Block airBlock = getBlockWorld(blockWorldX + 1, blockWorldY, blockWorldZ);
+                    float lightLevel = airBlock.skyLight / 15.0f;
+
                     vertices.insert(vertices.end(), {
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,  1.0f, 0.0f, 0.0f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,  1.0f, 0.0f, 0.0f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.75f, 0.666f,  1.0f, 0.0f, 0.0f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,  1.0f, 0.0f, 0.0f
+                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,  1.0f, 0.0f, 0.0f,  lightLevel,
+                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,  1.0f, 0.0f, 0.0f,  lightLevel,
+                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.75f, 0.666f,  1.0f, 0.0f, 0.0f,  lightLevel,
+                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,  1.0f, 0.0f, 0.0f,  lightLevel
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -361,13 +473,16 @@ void Chunk::buildMeshForType(BlockType targetType) {
                     vertexCount += 4;
                 }
 
-                // West face (normal: -1, 0, 0)
+                // West face
                 if (getBlockWorld(blockWorldX - 1, blockWorldY, blockWorldZ).isAir()) {
+                    Block airBlock = getBlockWorld(blockWorldX - 1, blockWorldY, blockWorldZ);
+                    float lightLevel = airBlock.skyLight / 15.0f;
+
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.0f,  0.333f,  -1.0f, 0.0f, 0.0f,
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,  -1.0f, 0.0f, 0.0f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,  -1.0f, 0.0f, 0.0f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.0f,  0.666f,  -1.0f, 0.0f, 0.0f
+                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.0f,  0.333f,  -1.0f, 0.0f, 0.0f,  lightLevel,
+                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,  -1.0f, 0.0f, 0.0f,  lightLevel,
+                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,  -1.0f, 0.0f, 0.0f,  lightLevel,
+                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.0f,  0.666f,  -1.0f, 0.0f, 0.0f,  lightLevel
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -380,14 +495,12 @@ void Chunk::buildMeshForType(BlockType targetType) {
     }
 
     if (indices.size() > 0) {
-        // Has blocks - create new mesh
         MeshData mesh;
         mesh.indexCount = indices.size();
         setupMesh(mesh, vertices, indices);
         meshes[targetType] = mesh;
     }
     else {
-        // No blocks of this type - delete old mesh if it exists
         auto it = meshes.find(targetType);
         if (it != meshes.end()) {
             if (it->second.VAO) glDeleteVertexArrays(1, &it->second.VAO);
@@ -411,17 +524,22 @@ void Chunk::setupMesh(MeshData& mesh, const std::vector<float>& vertices, const 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
+    // ===== UPDATED: Changed stride from 8 to 9 floats =====
     // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     // Texture coordinate attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
     // Normal attribute
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(5 * sizeof(float)));
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(5 * sizeof(float)));
     glEnableVertexAttribArray(2);
+
+    // ===== NEW: Light level attribute =====
+    glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(8 * sizeof(float)));
+    glEnableVertexAttribArray(3);
 
     glBindVertexArray(0);
 }
