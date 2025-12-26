@@ -30,6 +30,7 @@
 #include "GUI/DebugOverlay.h"
 #include "GUI/Crosshair.h"
 #include "GUI/BlockOutline.h"
+#include "GUI/HUD.h"
 #include "Chunk.h"
 #include "TerrainGenerator.h"
 #include "ChunkManager.h"
@@ -225,6 +226,9 @@ int main(int argc, char* argv[]) {
     DebugOverlay debugOverlay;
     debugOverlay.initialize();
 
+    HUD hud;
+    hud.initialize();
+
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
@@ -322,21 +326,35 @@ int main(int argc, char* argv[]) {
                         << (newMode == GameMode::SPECTATOR ? "SPECTATOR" : "SURVIVAL")
                         << " mode" << std::endl;
                 }
-                if (event.key.key == SDLK_1) {
-                    selectedBlock = BlockType::DIRT;
-                    std::cout << "Selected: DIRT" << std::endl;
-                }
-                if (event.key.key == SDLK_2) {
-                    selectedBlock = BlockType::GRASS;
-                    std::cout << "Selected: GRASS" << std::endl;
-                }
-                if (event.key.key == SDLK_3) {
-                    selectedBlock = BlockType::STONE;
-                    std::cout << "Selected: STONE" << std::endl;
-                }
-                if (event.key.key == SDLK_4) {
-                    selectedBlock = BlockType::SAND;
-                    std::cout << "Selected: SAND" << std::endl;
+
+                // Hotbar slot selection (1-9, 0 for slot 10)
+                if (event.key.key == SDLK_1) hud.setSelectedSlot(0);
+                if (event.key.key == SDLK_2) hud.setSelectedSlot(1);
+                if (event.key.key == SDLK_3) hud.setSelectedSlot(2);
+                if (event.key.key == SDLK_4) hud.setSelectedSlot(3);
+                if (event.key.key == SDLK_5) hud.setSelectedSlot(4);
+                if (event.key.key == SDLK_6) hud.setSelectedSlot(5);
+                if (event.key.key == SDLK_7) hud.setSelectedSlot(6);
+                if (event.key.key == SDLK_8) hud.setSelectedSlot(7);
+                if (event.key.key == SDLK_9) hud.setSelectedSlot(8);
+                if (event.key.key == SDLK_0) hud.setSelectedSlot(9);
+            }
+
+            // Mouse wheel scrolling for hotbar
+            if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+                if (!window.isPaused()) {
+                    if (event.wheel.y > 0) {
+                        // Scroll up = move left in hotbar
+                        int newSlot = hud.getSelectedSlot() - 1;
+                        if (newSlot < 0) newSlot = 9;  // Wrap to last slot
+                        hud.setSelectedSlot(newSlot);
+                    }
+                    else if (event.wheel.y < 0) {
+                        // Scroll down = move right in hotbar
+                        int newSlot = hud.getSelectedSlot() + 1;
+                        if (newSlot > 9) newSlot = 0;  // Wrap to first slot
+                        hud.setSelectedSlot(newSlot);
+                    }
                 }
             }
 
@@ -345,7 +363,11 @@ int main(int argc, char* argv[]) {
                     blockInteraction.breakBlock(camera, &chunkManager);
                 }
                 else if (event.button.button == SDL_BUTTON_RIGHT) {
-                    blockInteraction.placeBlock(camera, &chunkManager, selectedBlock);
+                    // Only place if current slot has a block
+                    if (hud.hasBlockInSlot()) {
+                        BlockType selectedBlock = hud.getSelectedBlock();
+                        blockInteraction.placeBlock(camera, &chunkManager, selectedBlock);
+                    }
                 }
             }
 
@@ -442,6 +464,10 @@ int main(int argc, char* argv[]) {
 
         if (!window.isPaused()) {
             crosshair.render(window.getWidth(), window.getHeight());
+        }
+
+        if (!window.isPaused()) {
+            hud.render(window.getWidth(), window.getHeight());
         }
 
         debugOverlay.render(window.getWidth(), window.getHeight(),
