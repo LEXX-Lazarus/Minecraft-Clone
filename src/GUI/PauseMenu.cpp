@@ -77,8 +77,8 @@ PauseMenu::~PauseMenu() {
 void PauseMenu::initialize() {
     shaderProgram = createShader();
     texturedShaderProgram = createTexturedShader();
-    fullscreenButtonTexture = loadButtonTexture("assets/GUI/FullscreenButton.png");
-    resumeButtonTexture = loadButtonTexture("assets/GUI/ResumeGameButton.png");
+    fullscreenButtonTexture = loadButtonTexture("assets/textures/GUI/FullscreenButton.png");
+    resumeButtonTexture = loadButtonTexture("assets/textures/GUI/ResumeGameButton.png");
     setupMesh();
 }
 
