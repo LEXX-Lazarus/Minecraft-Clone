@@ -36,6 +36,7 @@ set(SOURCES
     src/Rendering/Shader.cpp
     src/Rendering/Lighting.cpp
     src/Rendering/Skybox.cpp
+    src/Rendering/LightingComputeShader.cpp
     src/Window.cpp
     src/GUI/PauseMenu.cpp
     src/GUI/Crosshair.cpp

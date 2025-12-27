@@ -69,7 +69,7 @@ void ChunkManager::generationWorker() {
 }
 
 // =============================
-// Main Update
+// Main Update - GPU OPTIMIZED VERSION
 // =============================
 void ChunkManager::update(float playerX, float playerZ) {
     auto [playerChunkX, playerChunkZ] = worldToChunkCoords(playerX, playerZ);
@@ -83,25 +83,10 @@ void ChunkManager::update(float playerX, float playerZ) {
 
     processReadyChunks();
 
-    // Update player's chunk AND neighbors when light changes
-    if (globalSkyLightLevel != lastSkyLightLevel) {
-        lastSkyLightLevel = globalSkyLightLevel;
-
-        std::lock_guard<std::mutex> lock(chunksMutex);
-
-        // Update player's chunk + 8 neighbors (3x3 grid)
-        // Use FULL recalculation to preserve propagation, but DON'T rebuild mesh yet
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                long long key = makeKey(playerChunkX + dx, playerChunkZ + dz);
-                auto it = chunks.find(key);
-                if (it != chunks.end()) {
-                    it->second->calculateSkyLight(globalSkyLightLevel); // FULL calculation
-                    // DON'T call buildMesh() here - we're not rendering light yet!
-                }
-            }
-        }
-    }
+    // ===== GPU OPTIMIZATION: REMOVED LIGHTING RECALCULATION! =====
+    // The old code recalculated lighting for 9 chunks every time light changed.
+    // Now the GPU handles it via the globalSkyLightLevel uniform in the shader.
+    // Light calculation only happens ONCE per chunk at generation time!
 
     // Auto-save check
     if (worldSave) {
@@ -386,4 +371,14 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
             neighbor->second->buildMesh();
         }
     }
+}
+
+std::vector<Chunk*> ChunkManager::getLoadedChunks() {
+    std::vector<Chunk*> loaded;
+    std::lock_guard<std::mutex> lock(chunksMutex);  // thread-safe access
+    loaded.reserve(chunks.size());
+    for (auto& pair : chunks) {
+        loaded.push_back(pair.second);
+    }
+    return loaded;
 }

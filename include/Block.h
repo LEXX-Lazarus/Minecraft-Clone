@@ -6,7 +6,11 @@ enum class BlockType {
     GRASS = 1,
     DIRT = 2,
     STONE = 3,
-    SAND = 4
+    SAND = 4,
+    BLOCKOFPUREWHITELIGHT = 5,
+    BLOCKOFPUREREDLIGHT = 6,
+    BLOCKOFPUREGREENLIGHT = 7,
+    BLOCKOFPUREBLUELIGHT = 8
 };
 
 struct Block {

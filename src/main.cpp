@@ -24,6 +24,7 @@
 #include "Rendering/Texture.h"
 #include "Rendering/Shader.h"
 #include "Rendering/Skybox.h"
+#include "Rendering/Lighting.h"
 #include "Window.h"
 #include "GUI/PauseMenu.h"
 #include "GUI/DebugOverlay.h"
@@ -34,17 +35,17 @@
 #include "TerrainGenerator.h"
 #include "ChunkManager.h"
 
-// Vertex shader with light level input
+// GPU-OPTIMIZED: Shader receives global light level and scales in real-time
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 layout (location = 2) in vec3 aNormal;
-layout (location = 3) in float aLightLevel;  // NEW: Light level input
+layout (location = 3) in float aLightLevel;  // This is the MAX light (0-1), calculated once
 
 out vec2 texCoord;
 out vec3 normal;
-out float lightLevel;  // Pass to fragment shader
+out float lightLevel;
 
 uniform mat4 model;
 uniform mat4 view;
@@ -54,38 +55,41 @@ void main()
 {
     texCoord = aTexCoord;
     normal = aNormal;
-    lightLevel = aLightLevel;  // Pass through to fragment shader
+    lightLevel = aLightLevel;  // Pass max light to fragment shader
     gl_Position = projection * view * model * vec4(aPos, 1.0);
 }
 )";
 
-// Fragment shader that uses light level for brightness
+// GPU-OPTIMIZED: Fragment shader scales light based on global level
 const char* fragmentShaderSource = R"(
 #version 330 core
 out vec4 FragColor;
 
 in vec2 texCoord;
 in vec3 normal;
-in float lightLevel;  // Receive from vertex shader (0.0 to 1.0)
+in float lightLevel;  // Max light level (0-1) from vertex
 
 uniform sampler2D ourTexture;
+uniform float globalSkyLightLevel;  // Current sky light (0-15)
 
 void main()
 {
     vec4 texColor = texture(ourTexture, texCoord);
     vec3 norm = normalize(normal);
     
-    // MINECRAFT-STYLE LIGHTING:
-    // Use exponential curve for more natural brightness falloff
-    float brightness = pow(lightLevel, 2.2) * 0.95 + 0.05;
+    // GPU MAGIC: Scale the max light by current global level
+    // This happens on GPU for ALL chunks simultaneously!
+    float actualLight = lightLevel * (globalSkyLightLevel / 15.0);
     
-    // Ambient occlusion (face darkening) for depth
+    // Minecraft-style brightness curve
+    float brightness = pow(actualLight, 2.2) * 0.95 + 0.05;
+    
+    // Ambient occlusion
     float ao = 1.0;
-    if (norm.y > 0.9) ao = 1.0;        // Top face - brightest
-    else if (norm.y < -0.9) ao = 0.5;  // Bottom face - darkest
-    else ao = 0.8;                      // Side faces - medium
+    if (norm.y > 0.9) ao = 1.0;
+    else if (norm.y < -0.9) ao = 0.5;
+    else ao = 0.8;
     
-    // Apply lighting
     vec3 lighting = vec3(brightness * ao);
     vec3 result = lighting * texColor.rgb;
     
@@ -158,6 +162,8 @@ int main(int argc, char* argv[]) {
     DebugOverlay debugOverlay;
     debugOverlay.initialize();
 
+    Lighting lighting;
+
     HUD hud;
     hud.initialize();
 
@@ -169,10 +175,9 @@ int main(int argc, char* argv[]) {
     Texture stoneTexture("assets/textures/blocks/StoneBlock.png");
     Texture sandTexture("assets/textures/blocks/SandBlock.png");
 
-    // Create Player and Camera
     float spawnX = 0.0f;
     float spawnZ = 0.0f;
-    float spawnY = 120.0f;  // Minimum spawn height
+    float spawnY = 120.0f;
 
     ChunkManager chunkManager(12, "world1");
 
@@ -181,7 +186,6 @@ int main(int argc, char* argv[]) {
 
     int highestSolidY = -1;
 
-    // Scan from minimum spawn height up to max world height
     for (int checkY = 120; checkY < 200; ++checkY) {
         Block* block = chunkManager.getBlockAt(blockX, checkY, blockZ);
         if (block) {
@@ -222,6 +226,13 @@ int main(int argc, char* argv[]) {
         float deltaTime = std::chrono::duration<float>(currentFrameTime - lastFrameTime).count();
         lastFrameTime = currentFrameTime;
 
+        // Update day/night cycle - NO MORE CHUNK RECALCULATION!
+        lighting.update(deltaTime, 1.0f / 60.0f);
+
+        // Update ChunkManager's tracked light level (for debug/queries)
+        // Note: This doesn't recalculate chunks anymore, just tracks the value!
+        chunkManager.setGlobalSkyLightLevel(lighting.getSkyLightLevel());
+
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
         float fpsTime = std::chrono::duration<float>(currentTime - lastTime).count();
@@ -252,7 +263,6 @@ int main(int argc, char* argv[]) {
                         << " mode" << std::endl;
                 }
 
-                // Hotbar slot selection (1-9, 0 for slot 10)
                 if (event.key.key == SDLK_1) hud.setSelectedSlot(0);
                 if (event.key.key == SDLK_2) hud.setSelectedSlot(1);
                 if (event.key.key == SDLK_3) hud.setSelectedSlot(2);
@@ -265,19 +275,16 @@ int main(int argc, char* argv[]) {
                 if (event.key.key == SDLK_0) hud.setSelectedSlot(9);
             }
 
-            // Mouse wheel scrolling for hotbar
             if (event.type == SDL_EVENT_MOUSE_WHEEL) {
                 if (!window.isPaused()) {
                     if (event.wheel.y > 0) {
-                        // Scroll up = move left in hotbar
                         int newSlot = hud.getSelectedSlot() - 1;
-                        if (newSlot < 0) newSlot = 9;  // Wrap to last slot
+                        if (newSlot < 0) newSlot = 9;
                         hud.setSelectedSlot(newSlot);
                     }
                     else if (event.wheel.y < 0) {
-                        // Scroll down = move right in hotbar
                         int newSlot = hud.getSelectedSlot() + 1;
-                        if (newSlot > 9) newSlot = 0;  // Wrap to first slot
+                        if (newSlot > 9) newSlot = 0;
                         hud.setSelectedSlot(newSlot);
                     }
                 }
@@ -288,7 +295,6 @@ int main(int argc, char* argv[]) {
                     blockInteraction.breakBlock(camera, &chunkManager);
                 }
                 else if (event.button.button == SDL_BUTTON_RIGHT) {
-                    // Only place if current slot has a block
                     if (hud.hasBlockInSlot()) {
                         BlockType selectedBlock = hud.getSelectedBlock();
                         blockInteraction.placeBlock(camera, &chunkManager, selectedBlock);
@@ -342,11 +348,16 @@ int main(int argc, char* argv[]) {
             chunkManager.update(player.x, player.z);
         }
 
-        // Simple sky blue background
-        glClearColor(0.53f, 0.81f, 0.98f, 1.0f);
+        glm::vec3 sky = lighting.getSkyColor();
+        glClearColor(sky.r, sky.g, sky.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         shader.use();
+
+        // GPU OPTIMIZATION: Pass global sky light level to shader!
+        // This one uniform updates ALL chunks simultaneously on the GPU
+        float globalSkyLight = static_cast<float>(lighting.getSkyLightLevel());
+        glUniform1f(glGetUniformLocation(shader.getID(), "globalSkyLightLevel"), globalSkyLight);
 
         float model[16], view[16], projection[16];
         identityMatrix(model);
@@ -379,7 +390,7 @@ int main(int argc, char* argv[]) {
         sandTexture.bind();
         chunkManager.renderType(BlockType::SAND);
 
-        skybox.render(view, projection, 0.5f);  // Fixed noon time
+        skybox.render(view, projection, lighting.getTimeOfDay());
 
         if (!window.isPaused()) {
             blockOutline.render(camera, &chunkManager, view, projection);
@@ -395,7 +406,7 @@ int main(int argc, char* argv[]) {
 
         debugOverlay.render(window.getWidth(), window.getHeight(),
             camera.x, camera.y, camera.z,
-            camera.yaw, fps, 0.5f, &chunkManager);
+            camera.yaw, fps, lighting.getTimeOfDay(), &chunkManager);
 
         if (window.isPaused()) {
             pauseMenu.render(window.getWidth(), window.getHeight());

@@ -34,6 +34,9 @@ public:
     void updateSkyLightLevel(unsigned char newMaxSkyLight);
     unsigned char getSkyLight(int x, int y, int z) const;
 
+    GLuint lightTexture = 0; // GPU 3D texture for skylight
+    void initializeLightTexture();
+
 private:
     Block blocks[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
     Chunk* neighbors[4];  // 0=North, 1=South, 2=East, 3=West

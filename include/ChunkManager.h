@@ -43,6 +43,11 @@ public:
 	// Skylight level management
     void setGlobalSkyLightLevel(unsigned char level) { globalSkyLightLevel = level; }
 
+    // Returns a vector of pointers to all currently loaded chunks
+    std::vector<Chunk*> getLoadedChunks();
+
+    unsigned char getGlobalSkyLightLevel() const { return globalSkyLightLevel; }
+
 private:
     // =============================
     // Threaded generation

@@ -565,3 +565,12 @@ void Chunk::renderType(BlockType type) {
     glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
+
+void Chunk::initializeLightTexture() {
+    glGenTextures(1, &lightTexture);
+    glBindTexture(GL_TEXTURE_3D, lightTexture);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R8UI, CHUNK_SIZE_X, CHUNK_SIZE_Y, CHUNK_SIZE_Z, 0, GL_RED_INTEGER, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glBindTexture(GL_TEXTURE_3D, 0);
+}

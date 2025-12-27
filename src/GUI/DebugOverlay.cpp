@@ -238,7 +238,16 @@ void DebugOverlay::render(int windowWidth, int windowHeight,
 
         Block* block = chunkManager->getBlockAt(blockX, blockY, blockZ);
         if (block) {
-            lightText += std::to_string((int)block->skyLight);
+            // ===== FIXED: Apply GPU scaling to match what player actually sees! =====
+            int storedMaxLight = block->skyLight;  // Max light in mesh (0-15)
+            unsigned char globalLight = chunkManager->getGlobalSkyLightLevel();  // Time of day (0-15)
+
+            // Calculate ACTUAL displayed light (same formula as GPU shader!)
+            int actualDisplayedLight = (storedMaxLight * globalLight) / 15;
+
+            lightText += std::to_string(actualDisplayedLight);
+            lightText += " (max: " + std::to_string(storedMaxLight) + ")";
+
             delete block;
         }
         else {
@@ -255,7 +264,7 @@ void DebugOverlay::render(int windowWidth, int windowHeight,
     renderText(timeText, 10, 110, 1.2f, windowWidth, windowHeight);
     renderText(yawText, 10, 140, 1.2f, windowWidth, windowHeight);
     renderText(fpsText, 10, 170, 1.2f, windowWidth, windowHeight);
-    renderText(lightText, 10, 200, 1.2f, windowWidth, windowHeight); 
+    renderText(lightText, 10, 200, 1.2f, windowWidth, windowHeight);
 
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
