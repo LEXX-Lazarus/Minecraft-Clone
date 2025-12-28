@@ -83,11 +83,6 @@ void ChunkManager::update(float playerX, float playerZ) {
 
     processReadyChunks();
 
-    // ===== GPU OPTIMIZATION: REMOVED LIGHTING RECALCULATION! =====
-    // The old code recalculated lighting for 9 chunks every time light changed.
-    // Now the GPU handles it via the globalSkyLightLevel uniform in the shader.
-    // Light calculation only happens ONCE per chunk at generation time!
-
     // Auto-save check
     if (worldSave) {
         worldSave->autoSaveCheck();
@@ -197,10 +192,10 @@ void ChunkManager::unloadChunk(int cx, int cz) {
 }
 
 // =============================
-// Integrate Ready Chunks
+// UPDATED: Integrate Ready Chunks with Flood Fill
 // =============================
 void ChunkManager::processReadyChunks() {
-    const int maxPerFrame = 8;
+    const int maxPerFrame = 4;  // Reduced to prevent FPS drops
 
     for (int i = 0; i < maxPerFrame; i++) {
         Chunk* chunk = nullptr;
@@ -214,7 +209,7 @@ void ChunkManager::processReadyChunks() {
             chunks[key] = chunk;
         }
 
-        // Apply saved modifications BEFORE building mesh
+        // Apply saved modifications
         std::vector<ModifiedBlock> modifications;
         worldSave->loadChunkModifications(chunk->chunkX, chunk->chunkZ, modifications);
         for (auto& mod : modifications) {
@@ -223,12 +218,20 @@ void ChunkManager::processReadyChunks() {
             chunk->setBlock(localX, mod.y, localZ, mod.type);
         }
 
-        // CALCULATE SKYLIGHT AFTER TERRAIN/MODIFICATIONS ARE SET
-        chunk->calculateSkyLight(globalSkyLightLevel);  // Pass the global level
+        // Calculate sky light (includes internal propagation)
+        chunk->calculateSkyLight(15);  // ALWAYS 15
+
+        // Link neighbors
         linkChunkNeighbors(chunk);
+
+        // Cross-chunk propagation
+        chunk->propagateSkyLightFloodFill();
+
+        // Build mesh
         chunk->buildMesh();
     }
 }
+
 
 // =============================
 // Neighbor Linking
@@ -317,6 +320,10 @@ bool ChunkManager::setBlockAt(int worldX, int worldY, int worldZ, BlockType type
     return true;
 }
 
+// =============================
+// UPDATED: Rebuild with Comprehensive Flood Fill
+// =============================
+// CRITICAL: When block changes, do proper increase/decrease passes
 void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
     int chunkX = worldX / CHUNK_SIZE_X;
     if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) chunkX--;
@@ -326,48 +333,46 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
 
     std::lock_guard<std::mutex> lock(chunksMutex);
 
-    // Rebuild the chunk containing the block
+    // Recalculate light for center + neighbors
     long long key = makeKey(chunkX, chunkZ);
     auto it = chunks.find(key);
     if (it != chunks.end()) {
-        // RECALCULATE LIGHT BEFORE REBUILDING MESH - USE GLOBAL LEVEL!
-        it->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
+        it->second->calculateSkyLight(15);
+    }
+
+    static const int dx[4] = { 0, 0, 1, -1 };
+    static const int dz[4] = { 1, -1, 0, 0 };
+
+    for (int dir = 0; dir < 4; dir++) {
+        long long neighborKey = makeKey(chunkX + dx[dir], chunkZ + dz[dir]);
+        auto neighbor = chunks.find(neighborKey);
+        if (neighbor != chunks.end()) {
+            neighbor->second->calculateSkyLight(15);
+        }
+    }
+
+    // Cross-chunk propagation from center + neighbors
+    if (it != chunks.end()) {
+        it->second->propagateSkyLightFloodFill();
+    }
+
+    for (int dir = 0; dir < 4; dir++) {
+        long long neighborKey = makeKey(chunkX + dx[dir], chunkZ + dz[dir]);
+        auto neighbor = chunks.find(neighborKey);
+        if (neighbor != chunks.end()) {
+            neighbor->second->propagateSkyLightFloodFill();
+        }
+    }
+
+    // Rebuild meshes
+    if (it != chunks.end()) {
         it->second->buildMesh();
     }
 
-    // Rebuild neighboring chunks if block is on edge
-    int localX = worldX - chunkX * CHUNK_SIZE_X;
-    int localZ = worldZ - chunkZ * CHUNK_SIZE_Z;
-
-    if (localX == 0) {
-        long long neighborKey = makeKey(chunkX - 1, chunkZ);
+    for (int dir = 0; dir < 4; dir++) {
+        long long neighborKey = makeKey(chunkX + dx[dir], chunkZ + dz[dir]);
         auto neighbor = chunks.find(neighborKey);
         if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
-            neighbor->second->buildMesh();
-        }
-    }
-    if (localX == CHUNK_SIZE_X - 1) {
-        long long neighborKey = makeKey(chunkX + 1, chunkZ);
-        auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
-            neighbor->second->buildMesh();
-        }
-    }
-    if (localZ == 0) {
-        long long neighborKey = makeKey(chunkX, chunkZ - 1);
-        auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
-            neighbor->second->buildMesh();
-        }
-    }
-    if (localZ == CHUNK_SIZE_Z - 1) {
-        long long neighborKey = makeKey(chunkX, chunkZ + 1);
-        auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) {
-            neighbor->second->calculateSkyLight(globalSkyLightLevel);  // ADD PARAMETER
             neighbor->second->buildMesh();
         }
     }
@@ -375,7 +380,7 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
 
 std::vector<Chunk*> ChunkManager::getLoadedChunks() {
     std::vector<Chunk*> loaded;
-    std::lock_guard<std::mutex> lock(chunksMutex);  // thread-safe access
+    std::lock_guard<std::mutex> lock(chunksMutex);
     loaded.reserve(chunks.size());
     for (auto& pair : chunks) {
         loaded.push_back(pair.second);

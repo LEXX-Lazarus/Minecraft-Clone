@@ -129,10 +129,11 @@ void Chunk::calculateSkyLight(unsigned char maxSkyLight) {
         }
     }
 
-    // Step 3: Propagate within chunk
+    // Step 3: Propagate within chunk (handles Y-axis perfectly)
     propagateSkyLight();
 }
 
+// INTERNAL PROPAGATION: Uses LOCAL coordinates (keeps Y-axis working!)
 void Chunk::propagateSkyLight() {
     static bool queued[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
 
@@ -146,64 +147,44 @@ void Chunk::propagateSkyLight() {
 
     std::queue<std::tuple<int, int, int, unsigned char>> lightQueue;
 
-    // Find max light in chunk
-    unsigned char maxLightInChunk = 0;
+    // CRITICAL FIX: Seed ALL blocks that have ANY light and a dimmer neighbor
+    // Not just blocks with max light!
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                if (blocks[x][y][z].skyLight > maxLightInChunk) {
-                    maxLightInChunk = blocks[x][y][z].skyLight;
-                }
-            }
-        }
-    }
+                // OLD: if (blocks[x][y][z].skyLight != maxLightInChunk || !blocks[x][y][z].isAir())
+                // NEW: Seed ANY block with light > 0
+                if (blocks[x][y][z].skyLight == 0 || !blocks[x][y][z].isAir())
+                    continue;
 
-    // Add boundary blocks with max light
-    for (int x = 0; x < CHUNK_SIZE_X; x++) {
-        for (int y = 0; y < CHUNK_SIZE_Y; y++) {
-            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                if (blocks[x][y][z].skyLight != maxLightInChunk || !blocks[x][y][z].isAir()) continue;
-
+                unsigned char myLight = blocks[x][y][z].skyLight;
                 bool isBoundary = false;
 
-                int worldX = chunkX * CHUNK_SIZE_X + x;
-                int worldY = y;
-                int worldZ = chunkZ * CHUNK_SIZE_Z + z;
+                // Check if ANY neighbor has LESS light
+                if (x > 0 && blocks[x - 1][y][z].isAir() && blocks[x - 1][y][z].skyLight < myLight)
+                    isBoundary = true;
+                if (x < CHUNK_SIZE_X - 1 && blocks[x + 1][y][z].isAir() && blocks[x + 1][y][z].skyLight < myLight)
+                    isBoundary = true;
 
-                // Check all 6 neighbors using getBlockWorld
-                Block neighbor;
+                if (y > 0 && blocks[x][y - 1][z].isAir() && blocks[x][y - 1][z].skyLight < myLight)
+                    isBoundary = true;
+                if (y < CHUNK_SIZE_Y - 1 && blocks[x][y + 1][z].isAir() && blocks[x][y + 1][z].skyLight < myLight)
+                    isBoundary = true;
 
-                neighbor = getBlockWorld(worldX - 1, worldY, worldZ);
-                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
-
-                neighbor = getBlockWorld(worldX + 1, worldY, worldZ);
-                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
-
-                if (worldY > 0) {
-                    neighbor = getBlockWorld(worldX, worldY - 1, worldZ);
-                    if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
-                }
-
-                if (worldY < CHUNK_SIZE_Y - 1) {
-                    neighbor = getBlockWorld(worldX, worldY + 1, worldZ);
-                    if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
-                }
-
-                neighbor = getBlockWorld(worldX, worldY, worldZ - 1);
-                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
-
-                neighbor = getBlockWorld(worldX, worldY, worldZ + 1);
-                if (neighbor.isAir() && neighbor.skyLight < maxLightInChunk) isBoundary = true;
+                if (z > 0 && blocks[x][y][z - 1].isAir() && blocks[x][y][z - 1].skyLight < myLight)
+                    isBoundary = true;
+                if (z < CHUNK_SIZE_Z - 1 && blocks[x][y][z + 1].isAir() && blocks[x][y][z + 1].skyLight < myLight)
+                    isBoundary = true;
 
                 if (isBoundary) {
-                    lightQueue.push(std::make_tuple(x, y, z, maxLightInChunk));
+                    lightQueue.push(std::make_tuple(x, y, z, myLight));
                     queued[x][y][z] = true;
                 }
             }
         }
     }
 
-    // Propagate light within this chunk
+    // Propagate light
     int processed = 0;
     const int MAX_PROCESS = 10000;
 
@@ -214,7 +195,6 @@ void Chunk::propagateSkyLight() {
         lightQueue.pop();
 
         currentLight = blocks[x][y][z].skyLight;
-
         if (currentLight <= 1) continue;
 
         unsigned char spreadLight = currentLight - 1;
@@ -228,7 +208,7 @@ void Chunk::propagateSkyLight() {
             int ny = y + dy[i];
             int nz = z + dz[i];
 
-            // Stay within this chunk only
+            // Stay within chunk bounds
             if (nx < 0 || nx >= CHUNK_SIZE_X ||
                 ny < 0 || ny >= CHUNK_SIZE_Y ||
                 nz < 0 || nz >= CHUNK_SIZE_Z) {
@@ -238,7 +218,6 @@ void Chunk::propagateSkyLight() {
             if (queued[nx][ny][nz]) continue;
 
             Block& neighbor = blocks[nx][ny][nz];
-
             if (!neighbor.isAir()) continue;
 
             if (spreadLight > neighbor.skyLight) {
@@ -253,73 +232,134 @@ void Chunk::propagateSkyLight() {
     }
 }
 
-// NEW FUNCTION: Propagate light across chunk boundaries
-void Chunk::propagateSkyLightCrossChunk() {
-    // For each face of the chunk, check if we have bright light at the edge
-    // If yes, propagate it into the neighbor chunk
+// CROSS-CHUNK PROPAGATION: Uses WORLD coordinates (fixes X/Z between chunks!)
+void Chunk::propagateSkyLightFloodFill() {
+    std::queue<std::tuple<int, int, int>> lightQueue;
+    std::unordered_set<long long> queued;
 
-    // North face (z = CHUNK_SIZE_Z - 1)
-    if (neighbors[0]) {
-        for (int x = 0; x < CHUNK_SIZE_X; x++) {
-            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
-                unsigned char myLight = blocks[x][y][CHUNK_SIZE_Z - 1].skyLight;
-                if (myLight > 1 && blocks[x][y][CHUNK_SIZE_Z - 1].isAir()) {
-                    unsigned char spreadLight = myLight - 1;
-                    Block neighborBlock = neighbors[0]->getBlock(x, y, 0);
-                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
-                        neighbors[0]->blocks[x][y][0].skyLight = spreadLight;
-                    }
+    auto makeWorldKey = [](int x, int y, int z) -> long long {
+        return (static_cast<long long>(x + 100000) << 32) |
+            (static_cast<long long>(y) << 16) |
+            static_cast<long long>(z + 100000);
+        };
+
+    // Seed ONLY edge blocks that can propagate to neighbors
+    for (int x = 0; x < CHUNK_SIZE_X; x++) {
+        for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+            for (int z = 0; z < CHUNK_SIZE_Z; z++) {
+                // Only check edge blocks
+                if (x != 0 && x != CHUNK_SIZE_X - 1 && z != 0 && z != CHUNK_SIZE_Z - 1)
+                    continue;
+
+                if (!blocks[x][y][z].isAir() || blocks[x][y][z].skyLight == 0)
+                    continue;
+
+                int worldX = chunkX * CHUNK_SIZE_X + x;
+                int worldY = y;
+                int worldZ = chunkZ * CHUNK_SIZE_Z + z;
+
+                unsigned char myLight = blocks[x][y][z].skyLight;
+
+                // Check if we can improve a neighbor's light
+                bool canPropagate = false;
+
+                Block neighbor;
+
+                neighbor = getBlockWorld(worldX - 1, worldY, worldZ);
+                if (neighbor.isAir() && myLight > neighbor.skyLight + 1) canPropagate = true;
+
+                neighbor = getBlockWorld(worldX + 1, worldY, worldZ);
+                if (neighbor.isAir() && myLight > neighbor.skyLight + 1) canPropagate = true;
+
+                neighbor = getBlockWorld(worldX, worldY, worldZ - 1);
+                if (neighbor.isAir() && myLight > neighbor.skyLight + 1) canPropagate = true;
+
+                neighbor = getBlockWorld(worldX, worldY, worldZ + 1);
+                if (neighbor.isAir() && myLight > neighbor.skyLight + 1) canPropagate = true;
+
+                if (canPropagate) {
+                    long long key = makeWorldKey(worldX, worldY, worldZ);
+                    lightQueue.push(std::make_tuple(worldX, worldY, worldZ));
+                    queued.insert(key);
                 }
             }
         }
     }
 
-    // South face (z = 0)
-    if (neighbors[1]) {
-        for (int x = 0; x < CHUNK_SIZE_X; x++) {
-            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
-                unsigned char myLight = blocks[x][y][0].skyLight;
-                if (myLight > 1 && blocks[x][y][0].isAir()) {
-                    unsigned char spreadLight = myLight - 1;
-                    Block neighborBlock = neighbors[1]->getBlock(x, y, CHUNK_SIZE_Z - 1);
-                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
-                        neighbors[1]->blocks[x][y][CHUNK_SIZE_Z - 1].skyLight = spreadLight;
-                    }
-                }
+    // Propagate across chunks (X/Z only, Y is already handled internally)
+    int iterations = 0;
+    const int MAX_ITERATIONS = 50000;
+
+    while (!lightQueue.empty() && iterations < MAX_ITERATIONS) {
+        iterations++;
+
+        auto [worldX, worldY, worldZ] = lightQueue.front();
+        lightQueue.pop();
+
+        Block currentBlock = getBlockWorld(worldX, worldY, worldZ);
+        if (!currentBlock.isAir()) continue;
+
+        unsigned char currentLight = currentBlock.skyLight;
+        if (currentLight <= 1) continue;
+
+        unsigned char spreadLight = currentLight - 1;
+
+        // Only spread in X/Z directions (Y is handled internally)
+        int dx[] = { 1, -1, 0, 0 };
+        int dz[] = { 0, 0, 1, -1 };
+
+        for (int i = 0; i < 4; i++) {
+            int nx = worldX + dx[i];
+            int nz = worldZ + dz[i];
+            int ny = worldY;
+
+            long long neighborKey = makeWorldKey(nx, ny, nz);
+            if (queued.count(neighborKey)) continue;
+
+            Block neighbor = getBlockWorld(nx, ny, nz);
+            if (!neighbor.isAir()) continue;
+
+            if (spreadLight > neighbor.skyLight) {
+                setBlockWorldLight(nx, ny, nz, spreadLight);
+
+                lightQueue.push(std::make_tuple(nx, ny, nz));
+                queued.insert(neighborKey);
             }
         }
     }
+}
 
-    // East face (x = CHUNK_SIZE_X - 1)
-    if (neighbors[2]) {
-        for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
-                unsigned char myLight = blocks[CHUNK_SIZE_X - 1][y][z].skyLight;
-                if (myLight > 1 && blocks[CHUNK_SIZE_X - 1][y][z].isAir()) {
-                    unsigned char spreadLight = myLight - 1;
-                    Block neighborBlock = neighbors[2]->getBlock(0, y, z);
-                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
-                        neighbors[2]->blocks[0][y][z].skyLight = spreadLight;
-                    }
-                }
-            }
-        }
+// Helper to set light across chunks
+void Chunk::setBlockWorldLight(int worldX, int worldY, int worldZ, unsigned char lightLevel) {
+    if (worldY < 0 || worldY >= CHUNK_SIZE_Y) return;
+
+    int targetChunkX = worldX / CHUNK_SIZE_X;
+    if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) targetChunkX--;
+
+    int targetChunkZ = worldZ / CHUNK_SIZE_Z;
+    if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) targetChunkZ--;
+
+    if (targetChunkX == chunkX && targetChunkZ == chunkZ) {
+        int localX = worldX - (chunkX * CHUNK_SIZE_X);
+        int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
+        blocks[localX][worldY][localZ].skyLight = lightLevel;
+        return;
     }
 
-    // West face (x = 0)
-    if (neighbors[3]) {
-        for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-            for (int y = 0; y < CHUNK_SIZE_Y; y++) {
-                unsigned char myLight = blocks[0][y][z].skyLight;
-                if (myLight > 1 && blocks[0][y][z].isAir()) {
-                    unsigned char spreadLight = myLight - 1;
-                    Block neighborBlock = neighbors[3]->getBlock(CHUNK_SIZE_X - 1, y, z);
-                    if (neighborBlock.isAir() && neighborBlock.skyLight < spreadLight) {
-                        neighbors[3]->blocks[CHUNK_SIZE_X - 1][y][z].skyLight = spreadLight;
-                    }
-                }
-            }
-        }
+    int deltaX = targetChunkX - chunkX;
+    int deltaZ = targetChunkZ - chunkZ;
+
+    if (deltaX == 0 && deltaZ == 1 && neighbors[0]) {
+        neighbors[0]->setBlockWorldLight(worldX, worldY, worldZ, lightLevel);
+    }
+    else if (deltaX == 0 && deltaZ == -1 && neighbors[1]) {
+        neighbors[1]->setBlockWorldLight(worldX, worldY, worldZ, lightLevel);
+    }
+    else if (deltaX == 1 && deltaZ == 0 && neighbors[2]) {
+        neighbors[2]->setBlockWorldLight(worldX, worldY, worldZ, lightLevel);
+    }
+    else if (deltaX == -1 && deltaZ == 0 && neighbors[3]) {
+        neighbors[3]->setBlockWorldLight(worldX, worldY, worldZ, lightLevel);
     }
 }
 
@@ -524,7 +564,6 @@ void Chunk::setupMesh(MeshData& mesh, const std::vector<float>& vertices, const 
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh.EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
 
-    // ===== UPDATED: Changed stride from 8 to 9 floats =====
     // Position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -537,7 +576,7 @@ void Chunk::setupMesh(MeshData& mesh, const std::vector<float>& vertices, const 
     glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(5 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
-    // ===== NEW: Light level attribute =====
+    // Light level attribute
     glVertexAttribPointer(3, 1, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void*)(8 * sizeof(float)));
     glEnableVertexAttribArray(3);
 

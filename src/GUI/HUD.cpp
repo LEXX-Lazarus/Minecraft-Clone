@@ -11,10 +11,10 @@ HUD::HUD()
     hotbarSlots[1] = BlockType::GRASS;  // Slot 2
     hotbarSlots[2] = BlockType::STONE;  // Slot 3
     hotbarSlots[3] = BlockType::SAND;   // Slot 4
-    hotbarSlots[4] = BlockType::AIR;    // Slot 5 (empty)
-    hotbarSlots[5] = BlockType::AIR;    // Slot 6 (empty)
-    hotbarSlots[6] = BlockType::AIR;    // Slot 7 (empty)
-    hotbarSlots[7] = BlockType::AIR;    // Slot 8 (empty)
+    hotbarSlots[4] = BlockType::BLOCKOFPUREWHITELIGHT;    // Slot 5
+    hotbarSlots[5] = BlockType::BLOCKOFPUREREDLIGHT;      // Slot 6 
+    hotbarSlots[6] = BlockType::BLOCKOFPUREGREENLIGHT;    // Slot 7 
+    hotbarSlots[7] = BlockType::BLOCKOFPUREBLUELIGHT;     // Slot 8 
     hotbarSlots[8] = BlockType::AIR;    // Slot 9 (empty)
     hotbarSlots[9] = BlockType::AIR;    // Slot 10 (empty)
 }

@@ -170,10 +170,14 @@ int main(int argc, char* argv[]) {
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
-    Texture grassTexture("assets/textures/blocks/GrassBlock.png");
-    Texture dirtTexture("assets/textures/blocks/DirtBlock.png");
-    Texture stoneTexture("assets/textures/blocks/StoneBlock.png");
-    Texture sandTexture("assets/textures/blocks/SandBlock.png");
+    Texture grassBlockTexture("assets/textures/blocks/GrassBlock.png");
+    Texture dirtBlockTexture("assets/textures/blocks/DirtBlock.png");
+    Texture stoneBlockTexture("assets/textures/blocks/StoneBlock.png");
+    Texture sandBlockTexture("assets/textures/blocks/SandBlock.png");
+	Texture blockOfPureWhiteLightTexture("assets/textures/blocks/BlockOfPureWhiteLight.png");
+	Texture blockOfPureRedLightTexture("assets/textures/blocks/BlockOfPureRedLight.png");
+	Texture blockOfPureGreenLightTexture("assets/textures/blocks/BlockOfPureGreenLight.png");
+	Texture blockOfPureBlueLightTexture("assets/textures/blocks/BlockOfPureBlueLight.png");
 
     float spawnX = 0.0f;
     float spawnZ = 0.0f;
@@ -227,7 +231,7 @@ int main(int argc, char* argv[]) {
         lastFrameTime = currentFrameTime;
 
         // Update day/night cycle - NO MORE CHUNK RECALCULATION!
-        lighting.update(deltaTime, 1.0f / 60.0f);
+        lighting.update(deltaTime, 1.0f / 3600.0f);
 
         // Update ChunkManager's tracked light level (for debug/queries)
         // Note: This doesn't recalculate chunks anymore, just tracks the value!
@@ -378,17 +382,30 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
-        grassTexture.bind();
+        grassBlockTexture.bind();
         chunkManager.renderType(BlockType::GRASS);
 
-        dirtTexture.bind();
+        dirtBlockTexture.bind();
         chunkManager.renderType(BlockType::DIRT);
 
-        stoneTexture.bind();
+        stoneBlockTexture.bind();
         chunkManager.renderType(BlockType::STONE);
 
-        sandTexture.bind();
+        sandBlockTexture.bind();
         chunkManager.renderType(BlockType::SAND);
+
+		blockOfPureWhiteLightTexture.bind();
+		chunkManager.renderType(BlockType::BLOCKOFPUREWHITELIGHT);
+
+		blockOfPureRedLightTexture.bind();
+		chunkManager.renderType(BlockType::BLOCKOFPUREREDLIGHT);
+
+		blockOfPureGreenLightTexture.bind();
+		chunkManager.renderType(BlockType::BLOCKOFPUREGREENLIGHT);
+
+		blockOfPureBlueLightTexture.bind();
+		chunkManager.renderType(BlockType::BLOCKOFPUREBLUELIGHT);
+
 
         skybox.render(view, projection, lighting.getTimeOfDay());
 
