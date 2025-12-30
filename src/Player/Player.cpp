@@ -1,6 +1,6 @@
 #include "Player/Player.h"
 #include "Player/Camera.h"
-#include "ChunkManager.h"
+#include "World/ChunkManager.h"
 #include <cmath>
 #include <algorithm>
 #include <iostream>

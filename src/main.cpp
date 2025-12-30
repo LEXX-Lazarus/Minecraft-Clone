@@ -28,9 +28,9 @@
 #include "GUI/DebugOverlay.h"
 #include "GUI/Crosshair.h"
 #include "GUI/BlockOutline.h"
-#include "Chunk.h"
-#include "TerrainGenerator.h"
-#include "ChunkManager.h"
+#include "World/Chunk.h"
+#include "World/TerrainGenerator.h"
+#include "World/ChunkManager.h"
 
 // Vertex shader source
 const char* vertexShaderSource = R"(
@@ -134,9 +134,9 @@ int main(int argc, char* argv[]) {
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
-    Texture grassTexture("assets/textures/GrassBlock.png");
-    Texture dirtTexture("assets/textures/DirtBlock.png");
-    Texture stoneTexture("assets/textures/StoneBlock.png");
+    Texture grassTexture("assets/textures/blocks/GrassBlock.png");
+    Texture dirtTexture("assets/textures/blocks/DirtBlock.png");
+    Texture stoneTexture("assets/textures/blocks/StoneBlock.png");
 
     // Create Player and Camera
     float spawnX = 0.0f;

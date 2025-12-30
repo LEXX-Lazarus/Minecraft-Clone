@@ -27,7 +27,6 @@ set(GLAD_SOURCES "external/glad/src/glad.c")
 # Source files
 set(SOURCES
     src/main.cpp
-    src/WorldSave.cpp
     src/Player/Camera.cpp
     src/Player/Player.cpp
     src/Player/BlockInteraction.cpp
@@ -39,9 +38,10 @@ set(SOURCES
     src/GUI/Crosshair.cpp
     src/GUI/DebugOverlay.cpp
     src/GUI/BlockOutline.cpp
-    src/Chunk.cpp
-    src/ChunkManager.cpp
-    src/TerrainGenerator.cpp
+    src/World/WorldSave.cpp
+    src/World/Chunk.cpp
+    src/World/ChunkManager.cpp
+    src/World/TerrainGenerator.cpp
     src/Noise.cpp
 )
 

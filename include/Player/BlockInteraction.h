@@ -2,7 +2,7 @@
 #define BLOCK_INTERACTION_H
 
 #include "Player/Camera.h"
-#include "ChunkManager.h"
+#include "World/ChunkManager.h"
 #include "Block.h"
 
 class BlockInteraction {

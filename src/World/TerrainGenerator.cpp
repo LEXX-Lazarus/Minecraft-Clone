@@ -1,6 +1,6 @@
-#include "TerrainGenerator.h"
+#include "World/TerrainGenerator.h"
 #include "Noise.h"
-#include "Chunk.h"
+#include "World/Chunk.h"
 #include "Block.h"
 #include <cmath>
 #include <algorithm>

@@ -1,6 +1,6 @@
 #include "GUI/BlockOutline.h"
 #include "Player/Camera.h"
-#include "ChunkManager.h"
+#include "World/ChunkManager.h"
 #include "Block.h"
 #include <iostream>
 #include <cmath>
