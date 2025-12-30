@@ -46,7 +46,7 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
     int targetChunkX = worldX / CHUNK_SIZE_X;
     if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) targetChunkX--;
 
-    int targetChunkY = worldY / CHUNK_SIZE_Y;  // NOW WITH Y!
+    int targetChunkY = worldY / CHUNK_SIZE_Y;
     if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) targetChunkY--;
 
     int targetChunkZ = worldZ / CHUNK_SIZE_Z;
@@ -55,14 +55,14 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
     // If it's in this chunk, return directly
     if (targetChunkX == chunkX && targetChunkY == chunkY && targetChunkZ == chunkZ) {
         int localX = worldX - (chunkX * CHUNK_SIZE_X);
-        int localY = worldY - (chunkY * CHUNK_SIZE_Y);  // NOW WITH Y!
+        int localY = worldY - (chunkY * CHUNK_SIZE_Y);
         int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
         return blocks[localX][localY][localZ];
     }
 
     // Check which neighbor we need
     int deltaX = targetChunkX - chunkX;
-    int deltaY = targetChunkY - chunkY;  // NOW WITH Y!
+    int deltaY = targetChunkY - chunkY;
     int deltaZ = targetChunkZ - chunkZ;
 
     // Check all 6 directions (added Up/Down)
@@ -85,8 +85,10 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
         return neighbors[5]->getBlockWorld(worldX, worldY, worldZ);
     }
 
-    // Neighbor not loaded -> return AIR so chunk edges render
-    return Block(BlockType::AIR);
+    // SIMPLE FIX: Assume all unlinked neighbors are SOLID
+    // This prevents chunk border faces from rendering during load
+    // When neighbor links and rebuilds, correct faces will appear
+    return Block(BlockType::STONE);
 }
 
 void Chunk::setBlock(int x, int y, int z, BlockType type) {
@@ -97,7 +99,7 @@ void Chunk::setBlock(int x, int y, int z, BlockType type) {
 }
 
 void Chunk::setNeighbor(int direction, Chunk* neighbor) {
-    if (direction >= 0 && direction < 6) {  // Now 6 neighbors
+    if (direction >= 0 && direction < 6) {
         neighbors[direction] = neighbor;
     }
 }
@@ -128,12 +130,12 @@ void Chunk::buildMeshForType(BlockType targetType) {
 
                 // World position of this block for rendering
                 float worldX = chunkX * CHUNK_SIZE_X + x;
-                float worldY = chunkY * CHUNK_SIZE_Y + y;  // NOW WITH chunkY!
+                float worldY = chunkY * CHUNK_SIZE_Y + y;
                 float worldZ = -(chunkZ * CHUNK_SIZE_Z + z);
 
                 // World block coordinates for neighbor checking
                 int blockWorldX = chunkX * CHUNK_SIZE_X + x;
-                int blockWorldY = chunkY * CHUNK_SIZE_Y + y;  // NOW WITH chunkY!
+                int blockWorldY = chunkY * CHUNK_SIZE_Y + y;
                 int blockWorldZ = chunkZ * CHUNK_SIZE_Z + z;
 
                 // Top face

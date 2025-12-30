@@ -19,6 +19,7 @@ long long ChunkManager::makeKey(int x, int y, int z) const {
 ChunkManager::ChunkManager(int rd, const std::string& worldName)
     : renderDistance(rd),
     renderDistanceSquared(rd* rd),
+    verticalRenderDistance(4),  // CONFIGURABLE: Default 4 chunks up/down (64 blocks)
     lastPlayerChunkX(INT_MAX),
     lastPlayerChunkY(INT_MAX),
     lastPlayerChunkZ(INT_MAX),
@@ -127,9 +128,9 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
 
     std::vector<ChunkDistanceEntry> ordered;
 
-    // Define your vertical "disk" thickness
-    // For example: 4 chunks up and 4 chunks down from player
-    const int verticalHalfHeight = 4;
+    // DISK SHAPE: Circular XZ, Linear Y
+    // XZ Plane: renderDistance (e.g., 6 = 96 block radius)
+    // Y Axis: verticalRenderDistance (e.g., 4 = 4 chunks up + 4 down = 64 blocks total range)
 
     for (int dx = -renderDistance; dx <= renderDistance; dx++) {
         for (int dz = -renderDistance; dz <= renderDistance; dz++) {
@@ -138,9 +139,8 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
             int distSqXZ = dx * dx + dz * dz;
             if (distSqXZ > renderDistanceSquared) continue;
 
-            // SQUARE check for the Y (Vertical) plane
-            // This creates the "Disk" or "Cylinder" shape
-            for (int dy = -verticalHalfHeight; dy <= verticalHalfHeight; dy++) {
+            // LINEAR check for Y axis (creates disk shape)
+            for (int dy = -verticalRenderDistance; dy <= verticalRenderDistance; dy++) {
                 int cx = pcx + dx;
                 int cy = pcy + dy;
                 int cz = pcz + dz;
@@ -177,14 +177,14 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
 }
 
 // =============================
-// Integrate Ready Chunks
+// Integrate Ready Chunks - FIXED RACE CONDITION
 // =============================
 void ChunkManager::processReadyChunks() {
-    // INCREASED THROUGHPUT: Process more chunks per frame to keep up with flight
     const int maxPerFrame = 24;
 
     for (int i = 0; i < maxPerFrame; i++) {
         Chunk* chunk = nullptr;
+        long long key;
 
         {
             std::lock_guard<std::mutex> lock(mutex);
@@ -193,20 +193,49 @@ void ChunkManager::processReadyChunks() {
             chunk = readyChunks.front();
             readyChunks.pop();
 
-            long long key = makeKey(chunk->chunkX, chunk->chunkY, chunk->chunkZ);
+            key = makeKey(chunk->chunkX, chunk->chunkY, chunk->chunkZ);
+        }
 
-            // Safety check: if we already generated this (race condition), delete the duplicate
+        // 1. Add to map FIRST
+        {
             std::lock_guard<std::mutex> cLock(chunksMutex);
             if (chunks.count(key)) {
                 delete chunk;
                 continue;
             }
             chunks[key] = chunk;
-            queuedChunks.erase(key); // Finally remove from "in progress"
         }
 
+        // 2. Link ALL neighbors (bi-directional)
         linkChunkNeighbors(chunk);
-        chunk->buildMesh(); // This is the heavy CPU->GPU part
+
+        // 3. NOW build meshes (all links are complete)
+        chunk->buildMesh();
+
+        // 4. Rebuild neighbors ONLY if they're already linked to us
+        {
+            static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
+            static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
+            static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
+
+            std::lock_guard<std::mutex> cLock(chunksMutex);
+            for (int dir = 0; dir < 6; dir++) {
+                // Check if neighbor exists AND is already linked back to us
+                Chunk* neighbor = chunk->getNeighbor(dir);
+                if (neighbor) {
+                    // Verify bi-directional link is complete
+                    if (neighbor->getNeighbor(dir ^ 1) == chunk) {
+                        neighbor->buildMesh();
+                    }
+                }
+            }
+        }
+
+        // 5. Clean up
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            queuedChunks.erase(key);
+        }
     }
 }
 
@@ -279,11 +308,12 @@ void ChunkManager::linkChunkNeighbors(Chunk* chunk) {
         long long key = makeKey(chunk->chunkX + dx[i],
             chunk->chunkY + dy[i],
             chunk->chunkZ + dz[i]);
+
         auto it = chunks.find(key);
         if (it != chunks.end()) {
+            // Bi-directional pointers only. Extremely fast.
             chunk->setNeighbor(i, it->second);
             it->second->setNeighbor(i ^ 1, chunk);
-            it->second->buildMesh();
         }
     }
 }
@@ -403,4 +433,16 @@ std::vector<Chunk*> ChunkManager::getLoadedChunks() {
     loaded.reserve(chunks.size());
     for (auto& pair : chunks) loaded.push_back(pair.second);
     return loaded;
+}
+
+// =============================
+// Set Vertical Render Distance
+// =============================
+void ChunkManager::setVerticalRenderDistance(int distance) {
+    verticalRenderDistance = distance;
+    std::cout << "Vertical render distance set to: " << distance << " chunks (" << (distance * 16) << " blocks)\n";
+}
+
+int ChunkManager::getVerticalRenderDistance() const {
+    return verticalRenderDistance;
 }

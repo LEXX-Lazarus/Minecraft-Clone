@@ -40,17 +40,18 @@ public:
     void render();
     void renderType(BlockType type);
 
-    // LEGACY: Returns pointer to heap memory (Fixes your compilation errors in external files)
     Block* getBlockAt(int worldX, int worldY, int worldZ);
-
-    // OPTIMIZED: Returns block by value (Used by Player to fix lag)
-    Block getBlockData(int worldX, int worldY, int worldZ);
-
+    Block getBlockData(int worldX, int worldY, int worldZ);  // OPTIMIZED: No heap allocation
     std::tuple<int, int, int> worldToChunkCoords(float x, float y, float z);
+
     bool setBlockAt(int worldX, int worldY, int worldZ, BlockType type);
     void rebuildChunkMeshAt(int worldX, int worldY, int worldZ);
 
     std::vector<Chunk*> getLoadedChunks();
+
+    // NEW: Control vertical render distance separately
+    void setVerticalRenderDistance(int distance);
+    int getVerticalRenderDistance() const;
 
 private:
     void generationWorker();
@@ -67,8 +68,9 @@ private:
 
     std::unique_ptr<WorldSave> worldSave;
 
-    int renderDistance;
+    int renderDistance;         // XZ plane radius (horizontal)
     int renderDistanceSquared;
+    int verticalRenderDistance; // Y axis range (up/down from player)
 
     int lastPlayerChunkX;
     int lastPlayerChunkY;
@@ -84,7 +86,7 @@ private:
 
     std::mutex mutex;
     std::condition_variable queueCV;
-    std::vector<std::thread> workerThreads; // Changed from single thread
+    std::vector<std::thread> workerThreads;  // Multiple worker threads
     bool shouldStop;
 };
 

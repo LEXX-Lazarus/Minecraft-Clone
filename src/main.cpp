@@ -141,9 +141,15 @@ int main(int argc, char* argv[]) {
     // Create Player and Camera
     float spawnX = 0.0f;
     float spawnZ = 0.0f;
-    float spawnY = 280.0f;  // Minimum spawn height
+    float spawnY = 270.0f;  // Minimum spawn height
 
-    ChunkManager chunkManager(6);
+
+    // Create chunk manager with DISK-shaped loading
+    ChunkManager chunkManager(6);  // XZ plane: 6 chunk radius (96 blocks)
+
+    // Set vertical range separately for better FPS
+    chunkManager.setVerticalRenderDistance(3);  // Y axis: 3 up + 3 down = 6 chunks total (96 blocks)
+
 
     // Wait a moment for chunks to generate
     //std::this_thread::sleep_for(std::chrono::milliseconds(100));
