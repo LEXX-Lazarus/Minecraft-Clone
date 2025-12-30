@@ -158,20 +158,16 @@ bool Player::checkBlockCollision(float px, float py, float pz, ChunkManager* chu
             float checkY = py + dy;
             float checkZ = pz + dz;
 
-            // FIXED: Blocks are rendered centered at integer coordinates
-            // A block at position (0, 0, 0) spans from (-0.5, -0.5, -0.5) to (0.5, 0.5, 0.5)
-            // So we need to round to nearest integer, not floor
             int blockX = static_cast<int>(std::round(checkX));
-            int blockY = static_cast<int>(std::floor(checkY));  // Y uses floor (feet on ground)
-            int blockZ = static_cast<int>(std::round(-checkZ)); // Round, then negate for chunk system
+            int blockY = static_cast<int>(std::floor(checkY));
+            int blockZ = static_cast<int>(std::round(-checkZ));
 
-            Block* block = chunkManager->getBlockAt(blockX, blockY, blockZ);
-            if (block) {
-                bool isSolid = !block->isAir();
-                delete block;
-                if (isSolid) {
-                    return true;
-                }
+            // CHANGED: Uses getBlockData (returns value) instead of getBlockAt (returns pointer)
+            // This prevents lag from allocating thousands of blocks per second
+            Block block = chunkManager->getBlockData(blockX, blockY, blockZ);
+
+            if (!block.isAir()) {
+                return true;
             }
         }
     }

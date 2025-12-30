@@ -1,12 +1,16 @@
 #include "World/ChunkManager.h"
 #include <iostream>
 #include <algorithm>
+#include <climits>
+#include <cmath>
 
 // =============================
-// Utility
+// 3D KEY GENERATION
 // =============================
-long long ChunkManager::makeKey(int x, int z) const {
-    return (static_cast<long long>(x) << 32) ^ (static_cast<unsigned int>(z));
+long long ChunkManager::makeKey(int x, int y, int z) const {
+    return (static_cast<long long>(x + 100000) << 42) |
+        (static_cast<long long>(y + 10000) << 21) |
+        static_cast<long long>(z + 100000);
 }
 
 // =============================
@@ -16,11 +20,16 @@ ChunkManager::ChunkManager(int rd, const std::string& worldName)
     : renderDistance(rd),
     renderDistanceSquared(rd* rd),
     lastPlayerChunkX(INT_MAX),
+    lastPlayerChunkY(INT_MAX),
     lastPlayerChunkZ(INT_MAX),
     shouldStop(false),
-    worldSave(std::make_unique<WorldSave>(worldName))
-{
-    generationThread = std::thread(&ChunkManager::generationWorker, this);
+    worldSave(std::make_unique<WorldSave>(worldName)) {
+
+    // MAXIMIZE CPU: Use all cores. High-speed flight requires massive throughput.
+    unsigned int threadCount = std::max(2u, std::thread::hardware_concurrency());
+    for (unsigned int i = 0; i < threadCount; ++i) {
+        workerThreads.push_back(std::thread(&ChunkManager::generationWorker, this));
+    }
 }
 
 ChunkManager::~ChunkManager() {
@@ -29,7 +38,10 @@ ChunkManager::~ChunkManager() {
         shouldStop = true;
     }
     queueCV.notify_all();
-    generationThread.join();
+
+    for (auto& t : workerThreads) {
+        if (t.joinable()) t.join();
+    }
 
     for (auto& [_, chunk] : chunks) {
         delete chunk;
@@ -42,28 +54,35 @@ ChunkManager::~ChunkManager() {
 // =============================
 void ChunkManager::generationWorker() {
     while (true) {
-        std::pair<int, int> coords;
-
+        std::tuple<int, int, int> coords;
         {
             std::unique_lock<std::mutex> lock(mutex);
-            queueCV.wait(lock, [&] {
-                return shouldStop || !generationQueue.empty();
-                });
-
+            queueCV.wait(lock, [&] { return shouldStop || !generationQueue.empty(); });
             if (shouldStop) return;
 
             coords = generationQueue.front();
             generationQueue.pop();
+            chunksBeingGenerated.insert(coords);
         }
 
-        Chunk* chunk = new Chunk(coords.first, coords.second);
-        TerrainGenerator::generateFlatTerrain(*chunk);
+        auto [cx, cy, cz] = coords;
+        Chunk* chunk = new Chunk(cx, cy, cz);
+        TerrainGenerator::generateTerrain(*chunk);
+
+        // NEW: Load modifications BEFORE meshing
+        std::vector<ModifiedBlock> modifications;
+        worldSave->loadChunkModifications(cx, cz, modifications);
+        for (auto& mod : modifications) {
+            int localY = mod.y - cy * CHUNK_SIZE_Y;
+            if (localY >= 0 && localY < CHUNK_SIZE_Y) {
+                chunk->setBlock(mod.x - cx * CHUNK_SIZE_X, localY, mod.z - cz * CHUNK_SIZE_Z, mod.type);
+            }
+        }
 
         {
             std::lock_guard<std::mutex> lock(mutex);
             readyChunks.push(chunk);
-            chunksBeingGenerated.erase({ coords.first, coords.second });
-            queuedChunks.erase(makeKey(coords.first, coords.second));
+            chunksBeingGenerated.erase(coords);
         }
     }
 }
@@ -71,117 +90,173 @@ void ChunkManager::generationWorker() {
 // =============================
 // Main Update
 // =============================
-void ChunkManager::update(float playerX, float playerZ) {
-    auto [playerChunkX, playerChunkZ] = worldToChunkCoords(playerX, playerZ);
+void ChunkManager::update(float playerX, float playerY, float playerZ) {
+    auto [playerChunkX, playerChunkY, playerChunkZ] = worldToChunkCoords(playerX, playerY, playerZ);
 
-    if (playerChunkX != lastPlayerChunkX || playerChunkZ != lastPlayerChunkZ) {
+    // If moved, RE-PRIORITIZE everything immediately
+    if (playerChunkX != lastPlayerChunkX ||
+        playerChunkY != lastPlayerChunkY ||
+        playerChunkZ != lastPlayerChunkZ) {
+
         lastPlayerChunkX = playerChunkX;
+        lastPlayerChunkY = playerChunkY;
         lastPlayerChunkZ = playerChunkZ;
 
-        updateDesiredChunks(playerChunkX, playerChunkZ);
+        updateDesiredChunks(playerChunkX, playerChunkY, playerChunkZ);
     }
 
     processReadyChunks();
 
-    // Auto-save check
-    if (worldSave) {
-        worldSave->autoSaveCheck();
-    }
+    if (worldSave) worldSave->autoSaveCheck();
 }
 
 // =============================
-// Update desired chunks in radius
+// Update desired chunks
 // =============================
-void ChunkManager::updateDesiredChunks(int pcx, int pcz) {
+void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
+    // 1. CLEAR QUEUE (Maintain Jet Speed)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        std::queue<std::tuple<int, int, int>> empty;
+        std::swap(generationQueue, empty);
+        queuedChunks.clear();
+        for (const auto& c : chunksBeingGenerated) {
+            queuedChunks.insert(makeKey(std::get<0>(c), std::get<1>(c), std::get<2>(c)));
+        }
+    }
+
     std::vector<ChunkDistanceEntry> ordered;
-    ordered.reserve((renderDistance * 2 + 1) * (renderDistance * 2 + 1));
+
+    // Define your vertical "disk" thickness
+    // For example: 4 chunks up and 4 chunks down from player
+    const int verticalHalfHeight = 4;
 
     for (int dx = -renderDistance; dx <= renderDistance; dx++) {
         for (int dz = -renderDistance; dz <= renderDistance; dz++) {
-            int distSq = dx * dx + dz * dz;
-            if (distSq <= renderDistanceSquared) {
-                ordered.push_back({ pcx + dx, pcz + dz, distSq });
+
+            // CIRCULAR check for the XZ plane
+            int distSqXZ = dx * dx + dz * dz;
+            if (distSqXZ > renderDistanceSquared) continue;
+
+            // SQUARE check for the Y (Vertical) plane
+            // This creates the "Disk" or "Cylinder" shape
+            for (int dy = -verticalHalfHeight; dy <= verticalHalfHeight; dy++) {
+                int cx = pcx + dx;
+                int cy = pcy + dy;
+                int cz = pcz + dz;
+
+                // World height bounds check
+                if (cy < 0 || cy >= 6250) continue;
+
+                // We use distSqXZ for sorting so it still prioritizes 
+                // chunks closest to you horizontally
+                ordered.push_back({ cx, cy, cz, distSqXZ });
             }
         }
     }
 
+    // Sort by horizontal distance
     std::sort(ordered.begin(), ordered.end(), [](const ChunkDistanceEntry& a, const ChunkDistanceEntry& b) {
         return a.distSq < b.distSq;
         });
 
-    std::unordered_set<long long> desired;
-    desired.reserve(ordered.size());
-    for (const auto& entry : ordered) {
-        desired.insert(makeKey(entry.x, entry.z));
-    }
-
-    unloadDistantChunks(pcx, pcz);
+    unloadDistantChunks(pcx, pcy, pcz);
 
     {
         std::lock_guard<std::mutex> lock(mutex);
+        std::lock_guard<std::mutex> chunkLock(chunksMutex);
         for (const auto& entry : ordered) {
-            long long key = makeKey(entry.x, entry.z);
-            if (chunks.count(key) || queuedChunks.count(key)) continue;
-
-            queuedChunks.insert(key);
-            generationQueue.push({ entry.x, entry.z });
-            chunksBeingGenerated.insert({ entry.x, entry.z });
+            long long key = makeKey(entry.x, entry.y, entry.z);
+            if (chunks.count(key) == 0 && queuedChunks.count(key) == 0) {
+                queuedChunks.insert(key);
+                generationQueue.push({ entry.x, entry.y, entry.z });
+            }
         }
     }
-
     queueCV.notify_all();
 }
 
 // =============================
-// Unload chunks outside radius + buffer
+// Integrate Ready Chunks
 // =============================
-void ChunkManager::unloadDistantChunks(int playerChunkX, int playerChunkZ) {
-    std::vector<std::pair<int, int>> toUnload;
+void ChunkManager::processReadyChunks() {
+    // INCREASED THROUGHPUT: Process more chunks per frame to keep up with flight
+    const int maxPerFrame = 24;
+
+    for (int i = 0; i < maxPerFrame; i++) {
+        Chunk* chunk = nullptr;
+
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (readyChunks.empty()) return;
+
+            chunk = readyChunks.front();
+            readyChunks.pop();
+
+            long long key = makeKey(chunk->chunkX, chunk->chunkY, chunk->chunkZ);
+
+            // Safety check: if we already generated this (race condition), delete the duplicate
+            std::lock_guard<std::mutex> cLock(chunksMutex);
+            if (chunks.count(key)) {
+                delete chunk;
+                continue;
+            }
+            chunks[key] = chunk;
+            queuedChunks.erase(key); // Finally remove from "in progress"
+        }
+
+        linkChunkNeighbors(chunk);
+        chunk->buildMesh(); // This is the heavy CPU->GPU part
+    }
+}
+
+// =============================
+// Unload distant chunks
+// =============================
+void ChunkManager::unloadDistantChunks(int pcx, int pcy, int pcz) {
+    std::vector<long long> toUnload;
+    // Unload buffer is larger than load distance to prevent "flickering" at the edge
+    const int limit = (renderDistance + 2) * (renderDistance + 2);
 
     {
         std::lock_guard<std::mutex> lock(chunksMutex);
         for (auto& [key, chunk] : chunks) {
-            int cx = static_cast<int>(key >> 32);
-            int cz = static_cast<int>(key & 0xffffffff);
-            int dx = cx - playerChunkX;
-            int dz = cz - playerChunkZ;
-            float distance = std::sqrt(dx * dx + dz * dz);
-
-            if (distance > renderDistance + 2) {
-                toUnload.push_back({ cx, cz });
+            int dx = chunk->chunkX - pcx;
+            int dy = chunk->chunkY - pcy;
+            int dz = chunk->chunkZ - pcz;
+            if (dx * dx + dy * dy + dz * dz > limit) {
+                toUnload.push_back(key);
             }
         }
-    }
 
-    for (auto& [cx, cz] : toUnload) {
-        unloadChunk(cx, cz);
-    }
-
-    if (!toUnload.empty()) {
-        std::cout << "Unloaded " << toUnload.size() << " chunks\n";
+        for (long long key : toUnload) {
+            delete chunks[key];
+            chunks.erase(key);
+        }
     }
 }
 
+
 // =============================
-// Chunk Load / Unload
+// Chunk load/unload
 // =============================
-bool ChunkManager::isChunkLoaded(int cx, int cz) {
+bool ChunkManager::isChunkLoaded(int cx, int cy, int cz) {
     std::lock_guard<std::mutex> lock(chunksMutex);
-    return chunks.count(makeKey(cx, cz)) > 0;
+    return chunks.count(makeKey(cx, cy, cz)) > 0;
 }
 
-void ChunkManager::loadChunk(int cx, int cz) {
+void ChunkManager::loadChunk(int cx, int cy, int cz) {
     std::lock_guard<std::mutex> lock(mutex);
-    long long key = makeKey(cx, cz);
+    long long key = makeKey(cx, cy, cz);
     if (queuedChunks.count(key)) return;
 
     queuedChunks.insert(key);
-    generationQueue.push({ cx, cz });
+    generationQueue.push({ cx, cy, cz });
     queueCV.notify_all();
 }
 
-void ChunkManager::unloadChunk(int cx, int cz) {
-    long long key = makeKey(cx, cz);
+void ChunkManager::unloadChunk(int cx, int cy, int cz) {
+    long long key = makeKey(cx, cy, cz);
 
     std::lock_guard<std::mutex> lock(chunksMutex);
     auto it = chunks.find(key);
@@ -192,47 +267,18 @@ void ChunkManager::unloadChunk(int cx, int cz) {
 }
 
 // =============================
-// Integrate Ready Chunks
-// =============================
-void ChunkManager::processReadyChunks() {
-    const int maxPerFrame = 8;
-
-    for (int i = 0; i < maxPerFrame; i++) {
-        Chunk* chunk = nullptr;
-
-        {
-            std::lock_guard<std::mutex> lock(mutex);
-            if (readyChunks.empty()) return;
-            chunk = readyChunks.front();
-            readyChunks.pop();
-            long long key = makeKey(chunk->chunkX, chunk->chunkZ);
-            chunks[key] = chunk;
-        }
-
-        // Apply saved modifications BEFORE building mesh
-        std::vector<ModifiedBlock> modifications;
-        worldSave->loadChunkModifications(chunk->chunkX, chunk->chunkZ, modifications);
-        for (auto& mod : modifications) {
-            int localX = mod.x - chunk->chunkX * CHUNK_SIZE_X;
-            int localZ = mod.z - chunk->chunkZ * CHUNK_SIZE_Z;
-            chunk->setBlock(localX, mod.y, localZ, mod.type);
-        }
-
-        linkChunkNeighbors(chunk);
-        chunk->buildMesh();
-    }
-}
-
-// =============================
 // Neighbor Linking
 // =============================
 void ChunkManager::linkChunkNeighbors(Chunk* chunk) {
-    static const int dx[4] = { 0,0,1,-1 };
-    static const int dz[4] = { 1,-1,0,0 };
+    static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
+    static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
+    static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
 
     std::lock_guard<std::mutex> lock(chunksMutex);
-    for (int i = 0; i < 4; i++) {
-        long long key = makeKey(chunk->chunkX + dx[i], chunk->chunkZ + dz[i]);
+    for (int i = 0; i < 6; i++) {
+        long long key = makeKey(chunk->chunkX + dx[i],
+            chunk->chunkY + dy[i],
+            chunk->chunkZ + dz[i]);
         auto it = chunks.find(key);
         if (it != chunks.end()) {
             chunk->setNeighbor(i, it->second);
@@ -262,92 +308,99 @@ void ChunkManager::renderType(BlockType type) {
 // =============================
 // Block Query
 // =============================
+
+// COMPATIBILITY: Restored to return Block* for external files
 Block* ChunkManager::getBlockAt(int worldX, int worldY, int worldZ) {
-    int cx = worldX / CHUNK_SIZE_X;
-    if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) cx--;
-    int cz = worldZ / CHUNK_SIZE_Z;
-    if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) cz--;
+    // We get the block data (optimized), then wrap it in a pointer
+    // This allows external files to 'delete' it if they are designed that way
+    Block data = getBlockData(worldX, worldY, worldZ);
+    return new Block(data.type);
+}
+
+// OPTIMIZED: Returns Block value (no heap allocation)
+Block ChunkManager::getBlockData(int worldX, int worldY, int worldZ) {
+    int cx = worldX / CHUNK_SIZE_X; if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) cx--;
+    int cy = worldY / CHUNK_SIZE_Y; if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) cy--;
+    int cz = worldZ / CHUNK_SIZE_Z; if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) cz--;
 
     int lx = worldX - cx * CHUNK_SIZE_X;
+    int ly = worldY - cy * CHUNK_SIZE_Y;
     int lz = worldZ - cz * CHUNK_SIZE_Z;
 
     std::lock_guard<std::mutex> lock(chunksMutex);
-    auto it = chunks.find(makeKey(cx, cz));
-    if (it == chunks.end()) return nullptr;
+    auto it = chunks.find(makeKey(cx, cy, cz));
 
-    return new Block(it->second->getBlock(lx, worldY, lz));
+    if (it == chunks.end()) return Block(BlockType::AIR);
+
+    // Directly return the value from the chunk
+    return it->second->getBlock(lx, ly, lz);
 }
 
 // =============================
 // World -> Chunk coords
 // =============================
-std::pair<int, int> ChunkManager::worldToChunkCoords(float x, float z) {
+std::tuple<int, int, int> ChunkManager::worldToChunkCoords(float x, float y, float z) {
     int cx = static_cast<int>(std::floor(x / CHUNK_SIZE_X));
+    int cy = static_cast<int>(std::floor(y / CHUNK_SIZE_Y));
     int cz = static_cast<int>(std::floor(-z / CHUNK_SIZE_Z));
-    return { cx, cz };
+    return { cx, cy, cz };
 }
 
+// =============================
+// Set Block
+// =============================
 bool ChunkManager::setBlockAt(int worldX, int worldY, int worldZ, BlockType type) {
-    int chunkX = worldX / CHUNK_SIZE_X;
-    if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) chunkX--;
-
-    int chunkZ = worldZ / CHUNK_SIZE_Z;
-    if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) chunkZ--;
+    int chunkX = worldX / CHUNK_SIZE_X; if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) chunkX--;
+    int chunkY = worldY / CHUNK_SIZE_Y; if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) chunkY--;
+    int chunkZ = worldZ / CHUNK_SIZE_Z; if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) chunkZ--;
 
     int localX = worldX - chunkX * CHUNK_SIZE_X;
+    int localY = worldY - chunkY * CHUNK_SIZE_Y;
     int localZ = worldZ - chunkZ * CHUNK_SIZE_Z;
 
     std::lock_guard<std::mutex> lock(chunksMutex);
-    long long key = makeKey(chunkX, chunkZ);
+    long long key = makeKey(chunkX, chunkY, chunkZ);
     auto it = chunks.find(key);
     if (it == chunks.end()) return false;
 
-    it->second->setBlock(localX, worldY, localZ, type);
-
-    // SAVE THE MODIFICATION
+    it->second->setBlock(localX, localY, localZ, type);
     worldSave->saveBlockChange(worldX, worldY, worldZ, type);
 
     return true;
 }
 
+// =============================
+// Rebuild Mesh
+// =============================
 void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
-    int chunkX = worldX / CHUNK_SIZE_X;
-    if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) chunkX--;
-
-    int chunkZ = worldZ / CHUNK_SIZE_Z;
-    if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) chunkZ--;
+    int chunkX = worldX / CHUNK_SIZE_X; if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) chunkX--;
+    int chunkY = worldY / CHUNK_SIZE_Y; if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) chunkY--;
+    int chunkZ = worldZ / CHUNK_SIZE_Z; if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) chunkZ--;
 
     std::lock_guard<std::mutex> lock(chunksMutex);
 
-    // Rebuild the chunk containing the block
-    long long key = makeKey(chunkX, chunkZ);  // FIX: Use makeKey
+    long long key = makeKey(chunkX, chunkY, chunkZ);
     auto it = chunks.find(key);
-    if (it != chunks.end()) {
-        it->second->buildMesh();
-    }
+    if (it != chunks.end()) it->second->buildMesh();
 
-    // Rebuild neighboring chunks if block is on edge
-    int localX = worldX - chunkX * CHUNK_SIZE_X;
-    int localZ = worldZ - chunkZ * CHUNK_SIZE_Z;
+    static const int dx[6] = { 0,0,1,-1,0,0 };
+    static const int dy[6] = { 0,0,0,0,1,-1 };
+    static const int dz[6] = { 1,-1,0,0,0,0 };
 
-    if (localX == 0) {
-        long long neighborKey = makeKey(chunkX - 1, chunkZ);  // FIX: Use makeKey
+    for (int dir = 0; dir < 6; dir++) {
+        long long neighborKey = makeKey(chunkX + dx[dir], chunkY + dy[dir], chunkZ + dz[dir]);
         auto neighbor = chunks.find(neighborKey);
         if (neighbor != chunks.end()) neighbor->second->buildMesh();
     }
-    if (localX == CHUNK_SIZE_X - 1) {
-        long long neighborKey = makeKey(chunkX + 1, chunkZ);  // FIX: Use makeKey
-        auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
-    }
-    if (localZ == 0) {
-        long long neighborKey = makeKey(chunkX, chunkZ - 1);  // FIX: Use makeKey
-        auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
-    }
-    if (localZ == CHUNK_SIZE_Z - 1) {
-        long long neighborKey = makeKey(chunkX, chunkZ + 1);  // FIX: Use makeKey
-        auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
-    }
+}
+
+// =============================
+// Get Loaded Chunks
+// =============================
+std::vector<Chunk*> ChunkManager::getLoadedChunks() {
+    std::vector<Chunk*> loaded;
+    std::lock_guard<std::mutex> lock(chunksMutex);
+    loaded.reserve(chunks.size());
+    for (auto& pair : chunks) loaded.push_back(pair.second);
+    return loaded;
 }

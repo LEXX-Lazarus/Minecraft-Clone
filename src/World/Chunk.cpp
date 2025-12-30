@@ -2,10 +2,10 @@
 #include <vector>
 #include <iostream>
 
-Chunk::Chunk(int chunkX, int chunkZ)
-    : chunkX(chunkX), chunkZ(chunkZ) {
-    // Initialize neighbors to null
-    for (int i = 0; i < 4; i++) {
+Chunk::Chunk(int chunkX, int chunkY, int chunkZ)
+    : chunkX(chunkX), chunkY(chunkY), chunkZ(chunkZ) {
+    // Initialize 6 neighbors (added Up/Down)
+    for (int i = 0; i < 6; i++) {
         neighbors[i] = nullptr;
     }
 
@@ -37,8 +37,8 @@ Block Chunk::getBlock(int x, int y, int z) const {
 }
 
 Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
-    // Check Y bounds first (no neighbors in Y direction)
-    if (worldY < 0 || worldY >= CHUNK_SIZE_Y) {
+    // Check world bounds
+    if (worldY < 0 || worldY >= MAX_HEIGHT) {
         return Block(BlockType::AIR);
     }
 
@@ -46,36 +46,47 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
     int targetChunkX = worldX / CHUNK_SIZE_X;
     if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) targetChunkX--;
 
+    int targetChunkY = worldY / CHUNK_SIZE_Y;  // NOW WITH Y!
+    if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) targetChunkY--;
+
     int targetChunkZ = worldZ / CHUNK_SIZE_Z;
     if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) targetChunkZ--;
 
     // If it's in this chunk, return directly
-    if (targetChunkX == chunkX && targetChunkZ == chunkZ) {
+    if (targetChunkX == chunkX && targetChunkY == chunkY && targetChunkZ == chunkZ) {
         int localX = worldX - (chunkX * CHUNK_SIZE_X);
+        int localY = worldY - (chunkY * CHUNK_SIZE_Y);  // NOW WITH Y!
         int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
-        return blocks[localX][worldY][localZ];
+        return blocks[localX][localY][localZ];
     }
 
     // Check which neighbor we need
     int deltaX = targetChunkX - chunkX;
+    int deltaY = targetChunkY - chunkY;  // NOW WITH Y!
     int deltaZ = targetChunkZ - chunkZ;
 
-    // Direct neighbors only
-    if (deltaX == 0 && deltaZ == 1 && neighbors[0]) {  // North
+    // Check all 6 directions (added Up/Down)
+    if (deltaY == 0 && deltaX == 0 && deltaZ == 1 && neighbors[0]) {  // North
         return neighbors[0]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaX == 0 && deltaZ == -1 && neighbors[1]) {  // South
+    if (deltaY == 0 && deltaX == 0 && deltaZ == -1 && neighbors[1]) {  // South
         return neighbors[1]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaX == 1 && deltaZ == 0 && neighbors[2]) {  // East
+    if (deltaY == 0 && deltaX == 1 && deltaZ == 0 && neighbors[2]) {  // East
         return neighbors[2]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaX == -1 && deltaZ == 0 && neighbors[3]) {  // West
+    if (deltaY == 0 && deltaX == -1 && deltaZ == 0 && neighbors[3]) {  // West
         return neighbors[3]->getBlockWorld(worldX, worldY, worldZ);
     }
+    if (deltaX == 0 && deltaZ == 0 && deltaY == 1 && neighbors[4]) {  // Up
+        return neighbors[4]->getBlockWorld(worldX, worldY, worldZ);
+    }
+    if (deltaX == 0 && deltaZ == 0 && deltaY == -1 && neighbors[5]) {  // Down
+        return neighbors[5]->getBlockWorld(worldX, worldY, worldZ);
+    }
 
-    // Neighbor not loaded -> treat as solid so faces are not generated
-    return Block(BlockType::STONE);
+    // Neighbor not loaded -> return AIR so chunk edges render
+    return Block(BlockType::AIR);
 }
 
 void Chunk::setBlock(int x, int y, int z, BlockType type) {
@@ -86,9 +97,14 @@ void Chunk::setBlock(int x, int y, int z, BlockType type) {
 }
 
 void Chunk::setNeighbor(int direction, Chunk* neighbor) {
-    if (direction >= 0 && direction < 4) {
+    if (direction >= 0 && direction < 6) {  // Now 6 neighbors
         neighbors[direction] = neighbor;
     }
+}
+
+Chunk* Chunk::getNeighbor(int direction) const {
+    if (direction < 0 || direction >= 6) return nullptr;
+    return neighbors[direction];
 }
 
 void Chunk::buildMesh() {
@@ -112,12 +128,12 @@ void Chunk::buildMeshForType(BlockType targetType) {
 
                 // World position of this block for rendering
                 float worldX = chunkX * CHUNK_SIZE_X + x;
-                float worldY = y;
+                float worldY = chunkY * CHUNK_SIZE_Y + y;  // NOW WITH chunkY!
                 float worldZ = -(chunkZ * CHUNK_SIZE_Z + z);
 
                 // World block coordinates for neighbor checking
                 int blockWorldX = chunkX * CHUNK_SIZE_X + x;
-                int blockWorldY = y;
+                int blockWorldY = chunkY * CHUNK_SIZE_Y + y;  // NOW WITH chunkY!
                 int blockWorldZ = chunkZ * CHUNK_SIZE_Z + z;
 
                 // Top face

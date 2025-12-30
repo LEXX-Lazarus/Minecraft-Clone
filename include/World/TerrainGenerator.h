@@ -1,11 +1,11 @@
-#ifndef TERRAIN_GENERATOR_H
-#define TERRAIN_GENERATOR_H
+#ifndef TERRAINGENERATOR_H
+#define TERRAINGENERATOR_H
 
-#include "Chunk.h"
+class Chunk;  // Forward declaration
 
 class TerrainGenerator {
 public:
-    static void generateFlatTerrain(Chunk& chunk);
+    static void generateTerrain(Chunk& chunk);  // CHANGED from generateFlatTerrain
 };
 
 #endif

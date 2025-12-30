@@ -6,30 +6,35 @@
 #include <map>
 #include <vector>
 
-// Chunk dimensions
+// 3D Chunk System - 16x16x16 blocks
 constexpr int CHUNK_SIZE_X = 16;
-constexpr int CHUNK_SIZE_Y = 256;
+constexpr int CHUNK_SIZE_Y = 16;  // NOW 16 instead of 256!
 constexpr int CHUNK_SIZE_Z = 16;
-constexpr int MAX_HEIGHT = 256;
+constexpr int MAX_HEIGHT = 100000;  // World height: 100,000 blocks = 6,250 chunks vertically
 
 class Chunk {
 public:
-    int chunkX, chunkZ;
-    Chunk(int chunkX, int chunkZ);
+    int chunkX, chunkY, chunkZ;  // ADDED chunkY - now 3D!
+
+    Chunk(int chunkX, int chunkY, int chunkZ);  // CHANGED: 3 parameters
     ~Chunk();
 
     Block getBlock(int x, int y, int z) const;
-    Block getBlockWorld(int worldX, int worldY, int worldZ) const;  // NEW: cross-chunk lookup
+    Block getBlockWorld(int worldX, int worldY, int worldZ) const;
     void setBlock(int x, int y, int z, BlockType type);
-    void setNeighbor(int direction, Chunk* neighbor);  // NEW: link neighbors
+
+    void setNeighbor(int direction, Chunk* neighbor);
+    Chunk* getNeighbor(int direction) const;  // ADDED getter
 
     void buildMesh();
     void render();
     void renderType(BlockType type);
 
-private:
     Block blocks[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
-    Chunk* neighbors[4];  //0=North, 1=South, 2=East, 3=West
+
+private:
+    Chunk* neighbors[6];  // CHANGED: 6 neighbors (added Up/Down)
+    // 0=North(+Z), 1=South(-Z), 2=East(+X), 3=West(-X), 4=Up(+Y), 5=Down(-Y)
 
     struct MeshData {
         unsigned int VAO = 0;

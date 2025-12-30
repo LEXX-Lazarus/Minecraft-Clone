@@ -6,7 +6,7 @@ Camera::Camera(float posX, float posY, float posZ)
     yaw(90.0f), pitch(0.0f),
     frontX(0.0f), frontY(0.0f), frontZ(-1.0f),
     rightX(1.0f), rightY(0.0f), rightZ(0.0f),
-    speed(0.15f), sensitivity(0.1f) {
+    speed(0.55f), sensitivity(0.1f) {
     updateVectors();
 }
 
