@@ -57,6 +57,14 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
         int localX = worldX - (chunkX * CHUNK_SIZE_X);
         int localY = worldY - (chunkY * CHUNK_SIZE_Y);
         int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
+
+        // CRITICAL: Bounds check to prevent crash
+        if (localX < 0 || localX >= CHUNK_SIZE_X ||
+            localY < 0 || localY >= CHUNK_SIZE_Y ||
+            localZ < 0 || localZ >= CHUNK_SIZE_Z) {
+            return Block(BlockType::AIR);
+        }
+
         return blocks[localX][localY][localZ];
     }
 

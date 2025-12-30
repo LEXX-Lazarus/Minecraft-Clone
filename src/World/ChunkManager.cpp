@@ -70,13 +70,30 @@ void ChunkManager::generationWorker() {
         Chunk* chunk = new Chunk(cx, cy, cz);
         TerrainGenerator::generateTerrain(*chunk);
 
-        // NEW: Load modifications BEFORE meshing
+        // Load modifications for this X/Z column
         std::vector<ModifiedBlock> modifications;
         worldSave->loadChunkModifications(cx, cz, modifications);
+
+        // Calculate this chunk's Y range in world coordinates
+        int chunkWorldYMin = cy * CHUNK_SIZE_Y;
+        int chunkWorldYMax = chunkWorldYMin + CHUNK_SIZE_Y - 1;
+
+        // CRITICAL FIX: Only apply modifications within THIS chunk's Y range
         for (auto& mod : modifications) {
+            // Check if modification is in this chunk's Y range
+            if (mod.y < chunkWorldYMin || mod.y > chunkWorldYMax) {
+                continue;  // Skip modifications outside this chunk
+            }
+
+            int localX = mod.x - cx * CHUNK_SIZE_X;
             int localY = mod.y - cy * CHUNK_SIZE_Y;
-            if (localY >= 0 && localY < CHUNK_SIZE_Y) {
-                chunk->setBlock(mod.x - cx * CHUNK_SIZE_X, localY, mod.z - cz * CHUNK_SIZE_Z, mod.type);
+            int localZ = mod.z - cz * CHUNK_SIZE_Z;
+
+            // Bounds check
+            if (localX >= 0 && localX < CHUNK_SIZE_X &&
+                localY >= 0 && localY < CHUNK_SIZE_Y &&
+                localZ >= 0 && localZ < CHUNK_SIZE_Z) {
+                chunk->setBlock(localX, localY, localZ, mod.type);
             }
         }
 
@@ -162,25 +179,50 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
 
     unloadDistantChunks(pcx, pcy, pcz);
 
-    {
-        std::lock_guard<std::mutex> lock(mutex);
-        std::lock_guard<std::mutex> chunkLock(chunksMutex);
-        for (const auto& entry : ordered) {
-            long long key = makeKey(entry.x, entry.y, entry.z);
-            if (chunks.count(key) == 0 && queuedChunks.count(key) == 0) {
-                queuedChunks.insert(key);
-                generationQueue.push({ entry.x, entry.y, entry.z });
-            }
+    // JET SPEED: Queue chunks WITHOUT holding locks continuously
+    int queued = 0;
+    for (const auto& entry : ordered) {
+        long long key = makeKey(entry.x, entry.y, entry.z);
+
+        // Quick check: already loaded or queued?
+        bool skip = false;
+        {
+            std::lock_guard<std::mutex> chunkLock(chunksMutex);
+            if (chunks.count(key)) skip = true;
+        }
+        if (skip) continue;
+
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            if (queuedChunks.count(key)) continue;  // Already queued
+
+            queuedChunks.insert(key);
+            generationQueue.push({ entry.x, entry.y, entry.z });
+            queued++;
         }
     }
-    queueCV.notify_all();
+
+    if (queued > 0) {
+        queueCV.notify_all();
+    }
 }
 
 // =============================
-// Integrate Ready Chunks - FIXED RACE CONDITION
+// Integrate Ready Chunks - THREAD SAFE
 // =============================
 void ChunkManager::processReadyChunks() {
-    const int maxPerFrame = 24;
+    // ADAPTIVE: Process more chunks when there's a backlog
+    int readyCount = 0;
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        readyCount = readyChunks.size();
+    }
+
+    // Scale processing based on queue size
+    int maxPerFrame = 24;
+    if (readyCount > 50) maxPerFrame = 48;      // Heavy load
+    if (readyCount > 100) maxPerFrame = 96;     // Very heavy load
+    if (readyCount > 200) maxPerFrame = 144;    // Extreme load - TURBO MODE
 
     for (int i = 0; i < maxPerFrame; i++) {
         Chunk* chunk = nullptr;
@@ -192,42 +234,34 @@ void ChunkManager::processReadyChunks() {
 
             chunk = readyChunks.front();
             readyChunks.pop();
-
             key = makeKey(chunk->chunkX, chunk->chunkY, chunk->chunkZ);
         }
 
-        // 1. Add to map FIRST
-        {
-            std::lock_guard<std::mutex> cLock(chunksMutex);
-            if (chunks.count(key)) {
-                delete chunk;
-                continue;
-            }
-            chunks[key] = chunk;
+        // CRITICAL: Hold chunksMutex for entire process
+        std::lock_guard<std::mutex> cLock(chunksMutex);
+
+        // 1. Add to map
+        if (chunks.count(key)) {
+            delete chunk;
+            continue;
         }
+        chunks[key] = chunk;
 
-        // 2. Link ALL neighbors (bi-directional)
-        linkChunkNeighbors(chunk);
+        // 2. Link neighbors (still holding lock)
+        linkChunkNeighborsUnsafe(chunk);  // Call unsafe version since we have lock
 
-        // 3. NOW build meshes (all links are complete)
+        // 3. Build mesh (still holding lock)
         chunk->buildMesh();
 
-        // 4. Rebuild neighbors ONLY if they're already linked to us
-        {
-            static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
-            static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
-            static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
+        // 4. Rebuild neighbors
+        static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
+        static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
+        static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
 
-            std::lock_guard<std::mutex> cLock(chunksMutex);
-            for (int dir = 0; dir < 6; dir++) {
-                // Check if neighbor exists AND is already linked back to us
-                Chunk* neighbor = chunk->getNeighbor(dir);
-                if (neighbor) {
-                    // Verify bi-directional link is complete
-                    if (neighbor->getNeighbor(dir ^ 1) == chunk) {
-                        neighbor->buildMesh();
-                    }
-                }
+        for (int dir = 0; dir < 6; dir++) {
+            Chunk* neighbor = chunk->getNeighbor(dir);
+            if (neighbor && neighbor->getNeighbor(dir ^ 1) == chunk) {
+                neighbor->buildMesh();
             }
         }
 
@@ -239,12 +273,30 @@ void ChunkManager::processReadyChunks() {
     }
 }
 
+// Unsafe version (assumes caller holds chunksMutex)
+void ChunkManager::linkChunkNeighborsUnsafe(Chunk* chunk) {
+    static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
+    static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
+    static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
+
+    for (int i = 0; i < 6; i++) {
+        long long key = makeKey(chunk->chunkX + dx[i],
+            chunk->chunkY + dy[i],
+            chunk->chunkZ + dz[i]);
+
+        auto it = chunks.find(key);
+        if (it != chunks.end()) {
+            chunk->setNeighbor(i, it->second);
+            it->second->setNeighbor(i ^ 1, chunk);
+        }
+    }
+}
+
 // =============================
 // Unload distant chunks
 // =============================
 void ChunkManager::unloadDistantChunks(int pcx, int pcy, int pcz) {
     std::vector<long long> toUnload;
-    // Unload buffer is larger than load distance to prevent "flickering" at the edge
     const int limit = (renderDistance + 2) * (renderDistance + 2);
 
     {
@@ -258,8 +310,20 @@ void ChunkManager::unloadDistantChunks(int pcx, int pcy, int pcz) {
             }
         }
 
+        // CRITICAL FIX: Clear neighbor pointers BEFORE deleting
         for (long long key : toUnload) {
-            delete chunks[key];
+            Chunk* chunk = chunks[key];
+
+            // Clear this chunk's pointers from all neighbors
+            for (int dir = 0; dir < 6; dir++) {
+                Chunk* neighbor = chunk->getNeighbor(dir);
+                if (neighbor) {
+                    neighbor->setNeighbor(dir ^ 1, nullptr);  // Clear back-pointer
+                }
+            }
+
+            // Now safe to delete
+            delete chunk;
             chunks.erase(key);
         }
     }

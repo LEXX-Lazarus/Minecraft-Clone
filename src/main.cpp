@@ -145,10 +145,10 @@ int main(int argc, char* argv[]) {
 
 
     // Create chunk manager with DISK-shaped loading
-    ChunkManager chunkManager(6);  // XZ plane: 6 chunk radius (96 blocks)
+    ChunkManager chunkManager(10);  // XZ plane: 6 chunk radius (96 blocks)
 
     // Set vertical range separately for better FPS
-    chunkManager.setVerticalRenderDistance(3);  // Y axis: 3 up + 3 down = 6 chunks total (96 blocks)
+    chunkManager.setVerticalRenderDistance(6);  // Y axis: 3 up + 3 down = 6 chunks total (96 blocks)
 
 
     // Wait a moment for chunks to generate

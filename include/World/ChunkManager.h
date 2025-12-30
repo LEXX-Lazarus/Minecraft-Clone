@@ -59,6 +59,7 @@ private:
     void updateDesiredChunks(int pcx, int pcy, int pcz);
     void unloadDistantChunks(int pcx, int pcy, int pcz);
     void linkChunkNeighbors(Chunk* chunk);
+    void linkChunkNeighborsUnsafe(Chunk* chunk);  // Assumes caller holds chunksMutex
 
     bool isChunkLoaded(int cx, int cy, int cz);
     void loadChunk(int cx, int cy, int cz);
