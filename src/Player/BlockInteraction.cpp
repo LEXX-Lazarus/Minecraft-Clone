@@ -10,10 +10,9 @@ bool BlockInteraction::raycastBlock(Camera& camera, ChunkManager* chunkManager,
     int& faceX, int& faceY, int& faceZ) {
     if (!chunkManager) return false;
 
-    // Start ray from camera position with 0.5 offset
-    float rayX = camera.x + 0.0f;  // ADDED OFFSET
-    float rayY = camera.y + 0.5f;  // ADDED OFFSET
-    float rayZ = camera.z + 0.0f;  // ADDED OFFSET
+    float rayX = camera.x + 0.0f;
+    float rayY = camera.y + 0.5f;
+    float rayZ = camera.z + 0.0f;
 
     float dirX = camera.frontX;
     float dirY = camera.frontY;
@@ -28,7 +27,6 @@ bool BlockInteraction::raycastBlock(Camera& camera, ChunkManager* chunkManager,
         rayY += dirY * rayStep;
         rayZ += dirZ * rayStep;
 
-        // Convert to block coordinates
         int blockX = static_cast<int>(std::round(rayX));
         int blockY = static_cast<int>(std::floor(rayY));
         int blockZ = static_cast<int>(std::round(-rayZ));
@@ -88,8 +86,7 @@ bool BlockInteraction::breakBlock(Camera& camera, ChunkManager* chunkManager) {
         std::cout << "Breaking block at (" << hitBlockX << ", " << hitBlockY << ", " << hitBlockZ << ")" << std::endl;
 
         // Set block to air
-        if (chunkManager->setBlockAt(hitBlockX, hitBlockY, hitBlockZ, BlockType::AIR)) {
-            // Rebuild mesh
+        if (chunkManager->setBlockAt(hitBlockX, hitBlockY, hitBlockZ, Blocks::AIR)) {
             chunkManager->rebuildChunkMeshAt(hitBlockX, hitBlockY, hitBlockZ);
             std::cout << "Block broken!" << std::endl;
             return true;
@@ -110,20 +107,16 @@ bool BlockInteraction::placeBlock(Camera& camera, ChunkManager* chunkManager, Bl
         int placeY = hitBlockY + faceY;
         int placeZ = hitBlockZ + faceZ;
 
-        // Player position
         float playerX = camera.x;
         float playerFeetY = camera.y - 1.0f;
         float playerZ = -camera.z;
 
-        // Only prevent placement if block would be inside player's body (not feet)
-        // Player feet block and block below feet are safe to place
         int playerFeetBlockY = static_cast<int>(std::floor(playerFeetY));
         int playerHeadBlockY = playerFeetBlockY + 1;
 
         int playerBlockX = static_cast<int>(std::round(playerX));
         int playerBlockZ = static_cast<int>(std::round(playerZ));
 
-        // Prevent placing block if it's at player head or body level in same XZ position
         if (placeX == playerBlockX && placeZ == playerBlockZ) {
             if (placeY == playerHeadBlockY || placeY == playerFeetBlockY) {
                 std::cout << "Cannot place block - player collision!" << std::endl;

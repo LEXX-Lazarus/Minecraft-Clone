@@ -1,26 +1,24 @@
 #include "World/Chunk.h"
+#include "Rendering/TextureAtlas.h"
 #include <vector>
 #include <iostream>
 
 Chunk::Chunk(int chunkX, int chunkY, int chunkZ)
     : chunkX(chunkX), chunkY(chunkY), chunkZ(chunkZ) {
-    // Initialize 6 neighbors (added Up/Down)
     for (int i = 0; i < 6; i++) {
         neighbors[i] = nullptr;
     }
 
-    // Initialize all blocks as air
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                blocks[x][y][z] = Block(BlockType::AIR);
+                blocks[x][y][z] = Block(Blocks::AIR);
             }
         }
     }
 }
 
 Chunk::~Chunk() {
-    // Clean up all meshes
     for (auto& pair : meshes) {
         MeshData& mesh = pair.second;
         if (mesh.VAO) glDeleteVertexArrays(1, &mesh.VAO);
@@ -31,18 +29,16 @@ Chunk::~Chunk() {
 
 Block Chunk::getBlock(int x, int y, int z) const {
     if (x < 0 || x >= CHUNK_SIZE_X || y < 0 || y >= CHUNK_SIZE_Y || z < 0 || z >= CHUNK_SIZE_Z) {
-        return Block(BlockType::AIR);
+        return Block(Blocks::AIR);
     }
     return blocks[x][y][z];
 }
 
 Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
-    // Check world bounds
     if (worldY < 0 || worldY >= MAX_HEIGHT) {
-        return Block(BlockType::AIR);
+        return Block(Blocks::AIR);
     }
 
-    // Calculate which chunk this world position belongs to
     int targetChunkX = worldX / CHUNK_SIZE_X;
     if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) targetChunkX--;
 
@@ -52,51 +48,44 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
     int targetChunkZ = worldZ / CHUNK_SIZE_Z;
     if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) targetChunkZ--;
 
-    // If it's in this chunk, return directly
     if (targetChunkX == chunkX && targetChunkY == chunkY && targetChunkZ == chunkZ) {
         int localX = worldX - (chunkX * CHUNK_SIZE_X);
         int localY = worldY - (chunkY * CHUNK_SIZE_Y);
         int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
 
-        // CRITICAL: Bounds check to prevent crash
         if (localX < 0 || localX >= CHUNK_SIZE_X ||
             localY < 0 || localY >= CHUNK_SIZE_Y ||
             localZ < 0 || localZ >= CHUNK_SIZE_Z) {
-            return Block(BlockType::AIR);
+            return Block(Blocks::AIR);
         }
 
         return blocks[localX][localY][localZ];
     }
 
-    // Check which neighbor we need
     int deltaX = targetChunkX - chunkX;
     int deltaY = targetChunkY - chunkY;
     int deltaZ = targetChunkZ - chunkZ;
 
-    // Check all 6 directions (added Up/Down)
-    if (deltaY == 0 && deltaX == 0 && deltaZ == 1 && neighbors[0]) {  // North
+    if (deltaY == 0 && deltaX == 0 && deltaZ == 1 && neighbors[0]) {
         return neighbors[0]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaY == 0 && deltaX == 0 && deltaZ == -1 && neighbors[1]) {  // South
+    if (deltaY == 0 && deltaX == 0 && deltaZ == -1 && neighbors[1]) {
         return neighbors[1]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaY == 0 && deltaX == 1 && deltaZ == 0 && neighbors[2]) {  // East
+    if (deltaY == 0 && deltaX == 1 && deltaZ == 0 && neighbors[2]) {
         return neighbors[2]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaY == 0 && deltaX == -1 && deltaZ == 0 && neighbors[3]) {  // West
+    if (deltaY == 0 && deltaX == -1 && deltaZ == 0 && neighbors[3]) {
         return neighbors[3]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaX == 0 && deltaZ == 0 && deltaY == 1 && neighbors[4]) {  // Up
+    if (deltaX == 0 && deltaZ == 0 && deltaY == 1 && neighbors[4]) {
         return neighbors[4]->getBlockWorld(worldX, worldY, worldZ);
     }
-    if (deltaX == 0 && deltaZ == 0 && deltaY == -1 && neighbors[5]) {  // Down
+    if (deltaX == 0 && deltaZ == 0 && deltaY == -1 && neighbors[5]) {
         return neighbors[5]->getBlockWorld(worldX, worldY, worldZ);
     }
 
-    // SIMPLE FIX: Assume all unlinked neighbors are SOLID
-    // This prevents chunk border faces from rendering during load
-    // When neighbor links and rebuilds, correct faces will appear
-    return Block(BlockType::STONE);
+    return Block(Blocks::STONE);
 }
 
 void Chunk::setBlock(int x, int y, int z, BlockType type) {
@@ -117,17 +106,20 @@ Chunk* Chunk::getNeighbor(int direction) const {
     return neighbors[direction];
 }
 
-void Chunk::buildMesh() {
-    // Build separate mesh for each block type
-    buildMeshForType(BlockType::GRASS);
-    buildMeshForType(BlockType::DIRT);
-    buildMeshForType(BlockType::STONE);
+void Chunk::buildMesh(const TextureAtlas* atlas) {
+    buildMeshForType(Blocks::GRASS, atlas);  // was: BlockType::GRASS
+    buildMeshForType(Blocks::DIRT, atlas);   // was: BlockType::DIRT
+    buildMeshForType(Blocks::STONE, atlas);  // was: BlockType::STONE
 }
 
-void Chunk::buildMeshForType(BlockType targetType) {
+void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
     unsigned int vertexCount = 0;
+
+    TextureRect topUV = atlas ? atlas->getFaceUVs(targetType, 0) : TextureRect{ 0.25f, 0.666f, 0.5f, 1.0f };
+    TextureRect bottomUV = atlas ? atlas->getFaceUVs(targetType, 1) : TextureRect{ 0.25f, 0.0f, 0.5f, 0.333f };
+    TextureRect sideUV = atlas ? atlas->getFaceUVs(targetType, 2) : TextureRect{ 0.25f, 0.333f, 0.5f, 0.666f };
 
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -136,12 +128,10 @@ void Chunk::buildMeshForType(BlockType targetType) {
 
                 if (block.isAir() || block.type != targetType) continue;
 
-                // World position of this block for rendering
                 float worldX = chunkX * CHUNK_SIZE_X + x;
                 float worldY = chunkY * CHUNK_SIZE_Y + y;
                 float worldZ = -(chunkZ * CHUNK_SIZE_Z + z);
 
-                // World block coordinates for neighbor checking
                 int blockWorldX = chunkX * CHUNK_SIZE_X + x;
                 int blockWorldY = chunkY * CHUNK_SIZE_Y + y;
                 int blockWorldZ = chunkZ * CHUNK_SIZE_Z + z;
@@ -149,10 +139,10 @@ void Chunk::buildMeshForType(BlockType targetType) {
                 // Top face
                 if (getBlockWorld(blockWorldX, blockWorldY + 1, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.5f,  1.0f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.25f, 1.0f
+                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   topUV.uMin, topUV.vMin,
+                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   topUV.uMax, topUV.vMin,
+                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   topUV.uMax, topUV.vMax,
+                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   topUV.uMin, topUV.vMax
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -164,10 +154,10 @@ void Chunk::buildMeshForType(BlockType targetType) {
                 // Bottom face
                 if (getBlockWorld(blockWorldX, blockWorldY - 1, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.25f, 0.0f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.5f,  0.0f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f
+                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   bottomUV.uMin, bottomUV.vMin,
+                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   bottomUV.uMax, bottomUV.vMin,
+                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   bottomUV.uMax, bottomUV.vMax,
+                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   bottomUV.uMin, bottomUV.vMax
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -179,10 +169,10 @@ void Chunk::buildMeshForType(BlockType targetType) {
                 // South face
                 if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ - 1).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f
+                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMin,
+                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMin,
+                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMax,
+                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMax
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -194,10 +184,10 @@ void Chunk::buildMeshForType(BlockType targetType) {
                 // North face
                 if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ + 1).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   1.0f,  0.333f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   1.0f,  0.666f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.75f, 0.666f
+                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMin,
+                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMin,
+                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMax,
+                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMax
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -209,10 +199,10 @@ void Chunk::buildMeshForType(BlockType targetType) {
                 // East face
                 if (getBlockWorld(blockWorldX + 1, blockWorldY, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.5f,  0.333f,
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.75f, 0.333f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.75f, 0.666f,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.5f,  0.666f
+                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMin,
+                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMin,
+                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMax,
+                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMax
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,
@@ -224,10 +214,10 @@ void Chunk::buildMeshForType(BlockType targetType) {
                 // West face
                 if (getBlockWorld(blockWorldX - 1, blockWorldY, blockWorldZ).isAir()) {
                     vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   0.0f,  0.333f,
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   0.25f, 0.333f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   0.25f, 0.666f,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   0.0f,  0.666f
+                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMin,
+                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMin,
+                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMax,
+                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMax
                         });
                     indices.insert(indices.end(), {
                         vertexCount, vertexCount + 1, vertexCount + 2,

@@ -1,32 +1,27 @@
 #include "World/ChunkManager.h"
+#include "World/TerrainGenerator.h"
 #include <iostream>
 #include <algorithm>
 #include <climits>
 #include <cmath>
 
-// =============================
-// 3D KEY GENERATION
-// =============================
 long long ChunkManager::makeKey(int x, int y, int z) const {
     return (static_cast<long long>(x + 100000) << 42) |
         (static_cast<long long>(y + 10000) << 21) |
         static_cast<long long>(z + 100000);
 }
 
-// =============================
-// Constructor / Destructor
-// =============================
 ChunkManager::ChunkManager(int rd, const std::string& worldName)
     : renderDistance(rd),
     renderDistanceSquared(rd* rd),
-    verticalRenderDistance(4),  // CONFIGURABLE: Default 4 chunks up/down (64 blocks)
+    verticalRenderDistance(4),
     lastPlayerChunkX(INT_MAX),
     lastPlayerChunkY(INT_MAX),
     lastPlayerChunkZ(INT_MAX),
     shouldStop(false),
+    textureAtlas(nullptr),
     worldSave(std::make_unique<WorldSave>(worldName)) {
 
-    // MAXIMIZE CPU: Use all cores. High-speed flight requires massive throughput.
     unsigned int threadCount = std::max(2u, std::thread::hardware_concurrency());
     for (unsigned int i = 0; i < threadCount; ++i) {
         workerThreads.push_back(std::thread(&ChunkManager::generationWorker, this));
@@ -50,9 +45,10 @@ ChunkManager::~ChunkManager() {
     chunks.clear();
 }
 
-// =============================
-// Threaded Generation
-// =============================
+void ChunkManager::setTextureAtlas(TextureAtlas* atlas) {
+    textureAtlas = atlas;
+}
+
 void ChunkManager::generationWorker() {
     while (true) {
         std::tuple<int, int, int> coords;
@@ -70,26 +66,21 @@ void ChunkManager::generationWorker() {
         Chunk* chunk = new Chunk(cx, cy, cz);
         TerrainGenerator::generateTerrain(*chunk);
 
-        // Load modifications for this X/Z column
         std::vector<ModifiedBlock> modifications;
         worldSave->loadChunkModifications(cx, cz, modifications);
 
-        // Calculate this chunk's Y range in world coordinates
         int chunkWorldYMin = cy * CHUNK_SIZE_Y;
         int chunkWorldYMax = chunkWorldYMin + CHUNK_SIZE_Y - 1;
 
-        // CRITICAL FIX: Only apply modifications within THIS chunk's Y range
         for (auto& mod : modifications) {
-            // Check if modification is in this chunk's Y range
             if (mod.y < chunkWorldYMin || mod.y > chunkWorldYMax) {
-                continue;  // Skip modifications outside this chunk
+                continue;
             }
 
             int localX = mod.x - cx * CHUNK_SIZE_X;
             int localY = mod.y - cy * CHUNK_SIZE_Y;
             int localZ = mod.z - cz * CHUNK_SIZE_Z;
 
-            // Bounds check
             if (localX >= 0 && localX < CHUNK_SIZE_X &&
                 localY >= 0 && localY < CHUNK_SIZE_Y &&
                 localZ >= 0 && localZ < CHUNK_SIZE_Z) {
@@ -105,13 +96,9 @@ void ChunkManager::generationWorker() {
     }
 }
 
-// =============================
-// Main Update
-// =============================
 void ChunkManager::update(float playerX, float playerY, float playerZ) {
     auto [playerChunkX, playerChunkY, playerChunkZ] = worldToChunkCoords(playerX, playerY, playerZ);
 
-    // If moved, RE-PRIORITIZE everything immediately
     if (playerChunkX != lastPlayerChunkX ||
         playerChunkY != lastPlayerChunkY ||
         playerChunkZ != lastPlayerChunkZ) {
@@ -128,11 +115,7 @@ void ChunkManager::update(float playerX, float playerY, float playerZ) {
     if (worldSave) worldSave->autoSaveCheck();
 }
 
-// =============================
-// Update desired chunks
-// =============================
 void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
-    // 1. CLEAR QUEUE (Maintain Jet Speed)
     {
         std::lock_guard<std::mutex> lock(mutex);
         std::queue<std::tuple<int, int, int>> empty;
@@ -145,46 +128,34 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
 
     std::vector<ChunkDistanceEntry> ordered;
 
-    // DISK SHAPE: Circular XZ, Linear Y
-    // XZ Plane: renderDistance (e.g., 6 = 96 block radius)
-    // Y Axis: verticalRenderDistance (e.g., 4 = 4 chunks up + 4 down = 64 blocks total range)
-
     for (int dx = -renderDistance; dx <= renderDistance; dx++) {
         for (int dz = -renderDistance; dz <= renderDistance; dz++) {
 
-            // CIRCULAR check for the XZ plane
             int distSqXZ = dx * dx + dz * dz;
             if (distSqXZ > renderDistanceSquared) continue;
 
-            // LINEAR check for Y axis (creates disk shape)
             for (int dy = -verticalRenderDistance; dy <= verticalRenderDistance; dy++) {
                 int cx = pcx + dx;
                 int cy = pcy + dy;
                 int cz = pcz + dz;
 
-                // World height bounds check
                 if (cy < 0 || cy >= 6250) continue;
 
-                // We use distSqXZ for sorting so it still prioritizes 
-                // chunks closest to you horizontally
                 ordered.push_back({ cx, cy, cz, distSqXZ });
             }
         }
     }
 
-    // Sort by horizontal distance
     std::sort(ordered.begin(), ordered.end(), [](const ChunkDistanceEntry& a, const ChunkDistanceEntry& b) {
         return a.distSq < b.distSq;
         });
 
     unloadDistantChunks(pcx, pcy, pcz);
 
-    // JET SPEED: Queue chunks WITHOUT holding locks continuously
     int queued = 0;
     for (const auto& entry : ordered) {
         long long key = makeKey(entry.x, entry.y, entry.z);
 
-        // Quick check: already loaded or queued?
         bool skip = false;
         {
             std::lock_guard<std::mutex> chunkLock(chunksMutex);
@@ -194,7 +165,7 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
 
         {
             std::lock_guard<std::mutex> lock(mutex);
-            if (queuedChunks.count(key)) continue;  // Already queued
+            if (queuedChunks.count(key)) continue;
 
             queuedChunks.insert(key);
             generationQueue.push({ entry.x, entry.y, entry.z });
@@ -207,22 +178,17 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
     }
 }
 
-// =============================
-// Integrate Ready Chunks - THREAD SAFE
-// =============================
 void ChunkManager::processReadyChunks() {
-    // ADAPTIVE: Process more chunks when there's a backlog
     int readyCount = 0;
     {
         std::lock_guard<std::mutex> lock(mutex);
         readyCount = readyChunks.size();
     }
 
-    // Scale processing based on queue size
     int maxPerFrame = 24;
-    if (readyCount > 50) maxPerFrame = 48;      // Heavy load
-    if (readyCount > 100) maxPerFrame = 96;     // Very heavy load
-    if (readyCount > 200) maxPerFrame = 144;    // Extreme load - TURBO MODE
+    if (readyCount > 50) maxPerFrame = 48;
+    if (readyCount > 100) maxPerFrame = 96;
+    if (readyCount > 200) maxPerFrame = 144;
 
     for (int i = 0; i < maxPerFrame; i++) {
         Chunk* chunk = nullptr;
@@ -237,23 +203,18 @@ void ChunkManager::processReadyChunks() {
             key = makeKey(chunk->chunkX, chunk->chunkY, chunk->chunkZ);
         }
 
-        // CRITICAL: Hold chunksMutex for entire process
         std::lock_guard<std::mutex> cLock(chunksMutex);
 
-        // 1. Add to map
         if (chunks.count(key)) {
             delete chunk;
             continue;
         }
         chunks[key] = chunk;
 
-        // 2. Link neighbors (still holding lock)
-        linkChunkNeighborsUnsafe(chunk);  // Call unsafe version since we have lock
+        linkChunkNeighborsUnsafe(chunk);
 
-        // 3. Build mesh (still holding lock)
-        chunk->buildMesh();
+        chunk->buildMesh(textureAtlas);
 
-        // 4. Rebuild neighbors
         static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
         static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
         static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
@@ -261,11 +222,10 @@ void ChunkManager::processReadyChunks() {
         for (int dir = 0; dir < 6; dir++) {
             Chunk* neighbor = chunk->getNeighbor(dir);
             if (neighbor && neighbor->getNeighbor(dir ^ 1) == chunk) {
-                neighbor->buildMesh();
+                neighbor->buildMesh(textureAtlas);
             }
         }
 
-        // 5. Clean up
         {
             std::lock_guard<std::mutex> lock(mutex);
             queuedChunks.erase(key);
@@ -273,7 +233,6 @@ void ChunkManager::processReadyChunks() {
     }
 }
 
-// Unsafe version (assumes caller holds chunksMutex)
 void ChunkManager::linkChunkNeighborsUnsafe(Chunk* chunk) {
     static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
     static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
@@ -292,9 +251,6 @@ void ChunkManager::linkChunkNeighborsUnsafe(Chunk* chunk) {
     }
 }
 
-// =============================
-// Unload distant chunks
-// =============================
 void ChunkManager::unloadDistantChunks(int pcx, int pcy, int pcz) {
     std::vector<long long> toUnload;
     const int limit = (renderDistance + 2) * (renderDistance + 2);
@@ -310,29 +266,22 @@ void ChunkManager::unloadDistantChunks(int pcx, int pcy, int pcz) {
             }
         }
 
-        // CRITICAL FIX: Clear neighbor pointers BEFORE deleting
         for (long long key : toUnload) {
             Chunk* chunk = chunks[key];
 
-            // Clear this chunk's pointers from all neighbors
             for (int dir = 0; dir < 6; dir++) {
                 Chunk* neighbor = chunk->getNeighbor(dir);
                 if (neighbor) {
-                    neighbor->setNeighbor(dir ^ 1, nullptr);  // Clear back-pointer
+                    neighbor->setNeighbor(dir ^ 1, nullptr);
                 }
             }
 
-            // Now safe to delete
             delete chunk;
             chunks.erase(key);
         }
     }
 }
 
-
-// =============================
-// Chunk load/unload
-// =============================
 bool ChunkManager::isChunkLoaded(int cx, int cy, int cz) {
     std::lock_guard<std::mutex> lock(chunksMutex);
     return chunks.count(makeKey(cx, cy, cz)) > 0;
@@ -359,9 +308,6 @@ void ChunkManager::unloadChunk(int cx, int cy, int cz) {
     }
 }
 
-// =============================
-// Neighbor Linking
-// =============================
 void ChunkManager::linkChunkNeighbors(Chunk* chunk) {
     static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
     static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
@@ -375,16 +321,12 @@ void ChunkManager::linkChunkNeighbors(Chunk* chunk) {
 
         auto it = chunks.find(key);
         if (it != chunks.end()) {
-            // Bi-directional pointers only. Extremely fast.
             chunk->setNeighbor(i, it->second);
             it->second->setNeighbor(i ^ 1, chunk);
         }
     }
 }
 
-// =============================
-// Rendering
-// =============================
 void ChunkManager::render() {
     std::lock_guard<std::mutex> lock(chunksMutex);
     for (auto& [_, chunk] : chunks) {
@@ -399,19 +341,11 @@ void ChunkManager::renderType(BlockType type) {
     }
 }
 
-// =============================
-// Block Query
-// =============================
-
-// COMPATIBILITY: Restored to return Block* for external files
 Block* ChunkManager::getBlockAt(int worldX, int worldY, int worldZ) {
-    // We get the block data (optimized), then wrap it in a pointer
-    // This allows external files to 'delete' it if they are designed that way
     Block data = getBlockData(worldX, worldY, worldZ);
     return new Block(data.type);
 }
 
-// OPTIMIZED: Returns Block value (no heap allocation)
 Block ChunkManager::getBlockData(int worldX, int worldY, int worldZ) {
     int cx = worldX / CHUNK_SIZE_X; if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) cx--;
     int cy = worldY / CHUNK_SIZE_Y; if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) cy--;
@@ -424,15 +358,11 @@ Block ChunkManager::getBlockData(int worldX, int worldY, int worldZ) {
     std::lock_guard<std::mutex> lock(chunksMutex);
     auto it = chunks.find(makeKey(cx, cy, cz));
 
-    if (it == chunks.end()) return Block(BlockType::AIR);
+    if (it == chunks.end()) return Block(Blocks::AIR);
 
-    // Directly return the value from the chunk
     return it->second->getBlock(lx, ly, lz);
 }
 
-// =============================
-// World -> Chunk coords
-// =============================
 std::tuple<int, int, int> ChunkManager::worldToChunkCoords(float x, float y, float z) {
     int cx = static_cast<int>(std::floor(x / CHUNK_SIZE_X));
     int cy = static_cast<int>(std::floor(y / CHUNK_SIZE_Y));
@@ -440,9 +370,6 @@ std::tuple<int, int, int> ChunkManager::worldToChunkCoords(float x, float y, flo
     return { cx, cy, cz };
 }
 
-// =============================
-// Set Block
-// =============================
 bool ChunkManager::setBlockAt(int worldX, int worldY, int worldZ, BlockType type) {
     int chunkX = worldX / CHUNK_SIZE_X; if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) chunkX--;
     int chunkY = worldY / CHUNK_SIZE_Y; if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) chunkY--;
@@ -463,9 +390,6 @@ bool ChunkManager::setBlockAt(int worldX, int worldY, int worldZ, BlockType type
     return true;
 }
 
-// =============================
-// Rebuild Mesh
-// =============================
 void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
     int chunkX = worldX / CHUNK_SIZE_X; if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) chunkX--;
     int chunkY = worldY / CHUNK_SIZE_Y; if (worldY < 0 && worldY % CHUNK_SIZE_Y != 0) chunkY--;
@@ -475,7 +399,7 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
 
     long long key = makeKey(chunkX, chunkY, chunkZ);
     auto it = chunks.find(key);
-    if (it != chunks.end()) it->second->buildMesh();
+    if (it != chunks.end()) it->second->buildMesh(textureAtlas);
 
     static const int dx[6] = { 0,0,1,-1,0,0 };
     static const int dy[6] = { 0,0,0,0,1,-1 };
@@ -484,13 +408,10 @@ void ChunkManager::rebuildChunkMeshAt(int worldX, int worldY, int worldZ) {
     for (int dir = 0; dir < 6; dir++) {
         long long neighborKey = makeKey(chunkX + dx[dir], chunkY + dy[dir], chunkZ + dz[dir]);
         auto neighbor = chunks.find(neighborKey);
-        if (neighbor != chunks.end()) neighbor->second->buildMesh();
+        if (neighbor != chunks.end()) neighbor->second->buildMesh(textureAtlas);
     }
 }
 
-// =============================
-// Get Loaded Chunks
-// =============================
 std::vector<Chunk*> ChunkManager::getLoadedChunks() {
     std::vector<Chunk*> loaded;
     std::lock_guard<std::mutex> lock(chunksMutex);
@@ -499,9 +420,6 @@ std::vector<Chunk*> ChunkManager::getLoadedChunks() {
     return loaded;
 }
 
-// =============================
-// Set Vertical Render Distance
-// =============================
 void ChunkManager::setVerticalRenderDistance(int distance) {
     verticalRenderDistance = distance;
     std::cout << "Vertical render distance set to: " << distance << " chunks (" << (distance * 16) << " blocks)\n";

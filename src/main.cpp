@@ -23,6 +23,7 @@
 #include "Rendering/Renderer.h"
 #include "Rendering/Texture.h"
 #include "Rendering/Shader.h"
+#include "Rendering/TextureAtlas.h"
 #include "Window.h"
 #include "GUI/PauseMenu.h"
 #include "GUI/DebugOverlay.h"
@@ -32,18 +33,14 @@
 #include "World/TerrainGenerator.h"
 #include "World/ChunkManager.h"
 
-// Vertex shader source
 const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
-
 out vec2 texCoord;
-
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
-
 void main()
 {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
@@ -51,15 +48,11 @@ void main()
 }
 )";
 
-// Fragment shader source
 const char* fragmentShaderSource = R"(
 #version 330 core
 out vec4 FragColor;
-
 in vec2 texCoord;
-
 uniform sampler2D ourTexture;
-
 void main()
 {
     FragColor = texture(ourTexture, texCoord);
@@ -134,32 +127,26 @@ int main(int argc, char* argv[]) {
     SDL_SetWindowRelativeMouseMode(window.getSDLWindow(), true);
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
-    Texture grassTexture("assets/textures/blocks/GrassBlock.png");
-    Texture dirtTexture("assets/textures/blocks/DirtBlock.png");
-    Texture stoneTexture("assets/textures/blocks/StoneBlock.png");
 
-    // Create Player and Camera
+    // Build atlas: 64x48 per texture, stacked vertically
+    TextureAtlas atlas(64, 48);
+    if (!atlas.buildAtlas("assets/textures/blocks/")) {
+        std::cerr << "Failed to build texture atlas!" << std::endl;
+        return -1;
+    }
+
     float spawnX = 0.0f;
     float spawnZ = 0.0f;
-    float spawnY = 270.0f;  // Minimum spawn height
+    float spawnY = 270.0f;
 
-
-    // Create chunk manager with DISK-shaped loading
-    ChunkManager chunkManager(10);  // XZ plane: 6 chunk radius (96 blocks)
-
-    // Set vertical range separately for better FPS
-    chunkManager.setVerticalRenderDistance(6);  // Y axis: 3 up + 3 down = 6 chunks total (96 blocks)
-
-
-    // Wait a moment for chunks to generate
-    //std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    ChunkManager chunkManager(6);
+    chunkManager.setTextureAtlas(&atlas);
+    chunkManager.setVerticalRenderDistance(6);
 
     int blockX = static_cast<int>(std::round(spawnX));
     int blockZ = static_cast<int>(std::round(-spawnZ));
-
     int highestSolidY = -1;
 
-    // Scan from minimum spawn height up to max world height
     for (int checkY = 280; checkY < 300; ++checkY) {
         Block* block = chunkManager.getBlockAt(blockX, checkY, blockZ);
         if (block) {
@@ -171,19 +158,18 @@ int main(int argc, char* argv[]) {
     }
 
     if (highestSolidY >= 0) {
-        spawnY = static_cast<float>(highestSolidY) + 1.0f; // Spawn above the highest solid block
+        spawnY = static_cast<float>(highestSolidY) + 1.0f;
     }
     else {
-        spawnY = 280.0f; // Default if nothing found
+        spawnY = 280.0f;
     }
 
     Player player(spawnX, spawnY, spawnZ);
     Camera camera(spawnX, spawnY, spawnZ);
     player.setGameMode(GameMode::SURVIVAL);
 
-    BlockInteraction blockInteraction;  
-    BlockType selectedBlock = BlockType::STONE;
-
+    BlockInteraction blockInteraction;
+    BlockType selectedBlock = Blocks::STONE;
 
     bool running = true;
     SDL_Event event;
@@ -227,29 +213,37 @@ int main(int argc, char* argv[]) {
                         << (newMode == GameMode::SPECTATOR ? "SPECTATOR" : "SURVIVAL")
                         << " mode" << std::endl;
                 }
-                // BLOCK SELECTION (moved here)
                 if (event.key.key == SDLK_1) {
-                    selectedBlock = BlockType::DIRT;
+                    selectedBlock = Blocks::DIRT;  
                     std::cout << "Selected: DIRT" << std::endl;
                 }
                 if (event.key.key == SDLK_2) {
-                    selectedBlock = BlockType::GRASS;
+                    selectedBlock = Blocks::GRASS;  
                     std::cout << "Selected: GRASS" << std::endl;
                 }
                 if (event.key.key == SDLK_3) {
-                    selectedBlock = BlockType::STONE;
+                    selectedBlock = Blocks::STONE;  
                     std::cout << "Selected: STONE" << std::endl;
+                }
+                if (event.key.key == SDLK_4) {
+                    selectedBlock = Blocks::SAND;  
+                    std::cout << "Selected: SAND" << std::endl;
+                }
+                if (event.key.key == SDLK_5) {
+                    selectedBlock = Blocks::OAK_LOG; 
+                    std::cout << "Selected: OAK_LOG" << std::endl;
+                }
+                if (event.key.key == SDLK_6) {
+                    selectedBlock = Blocks::BLOCK_OF_WHITE_LIGHT;  
+                    std::cout << "Selected: BLOCK_OF_WHITE_LIGHT" << std::endl;
                 }
             }
 
-            // MOUSE BUTTON HANDLING (moved here, outside key_down)
             if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !window.isPaused()) {
                 if (event.button.button == SDL_BUTTON_LEFT) {
-                    // Break block
                     blockInteraction.breakBlock(camera, &chunkManager);
                 }
                 else if (event.button.button == SDL_BUTTON_RIGHT) {
-                    // Place block
                     blockInteraction.placeBlock(camera, &chunkManager, selectedBlock);
                 }
             }
@@ -324,22 +318,22 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
-        grassTexture.bind();
-        chunkManager.renderType(BlockType::GRASS);
+        atlas.bind();
+        chunkManager.renderType(Blocks::GRASS);   
+        chunkManager.renderType(Blocks::DIRT);    
+        chunkManager.renderType(Blocks::STONE);   
+        chunkManager.renderType(Blocks::SAND);    
+        chunkManager.renderType(Blocks::OAK_LOG);
+        chunkManager.renderType(Blocks::BLOCK_OF_WHITE_LIGHT);
+        chunkManager.renderType(Blocks::BLOCK_OF_RED_LIGHT);
+        chunkManager.renderType(Blocks::BLOCK_OF_GREEN_LIGHT);
+        chunkManager.renderType(Blocks::BLOCK_OF_BLUE_LIGHT);
 
-        dirtTexture.bind();
-        chunkManager.renderType(BlockType::DIRT);
-
-        stoneTexture.bind();
-        chunkManager.renderType(BlockType::STONE);
-
-        // Render block outline (only when not paused)
-        if (!window.isPaused()) {  // ADD THIS
+        if (!window.isPaused()) {
             blockOutline.render(camera, &chunkManager, view, projection);
         }
 
-        // Render crosshair (only when not paused)
-        if (!window.isPaused()) { 
+        if (!window.isPaused()) {
             crosshair.render(window.getWidth(), window.getHeight());
         }
 

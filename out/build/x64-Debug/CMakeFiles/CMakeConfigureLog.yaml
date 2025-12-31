@@ -71,8 +71,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -115,11 +115,11 @@ events:
       
       The output was:
       0
-      Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35719 for x64
+      Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35721 for x64
       Copyright (C) Microsoft Corporation.  All rights reserved.
       
       CMakeCCompilerId.c
-      Microsoft (R) Incremental Linker Version 14.50.35719.0
+      Microsoft (R) Incremental Linker Version 14.50.35721.0
       Copyright (C) Microsoft Corporation.  All rights reserved.
       
       /out:CMakeCCompilerId.exe 
@@ -204,8 +204,8 @@ events:
       - "C:/Program Files/HP/HP One Agent/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "D:/Program Files/Git/cmd/"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "C:/Python/Python39/Scripts/"
       - "C:/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python311/Scripts/"
@@ -259,8 +259,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -337,8 +337,8 @@ events:
       - "C:/Program Files/HP/HP One Agent/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "D:/Program Files/Git/cmd/"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "C:/Python/Python39/Scripts/"
       - "C:/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python311/Scripts/"
@@ -460,12 +460,12 @@ events:
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/lld-link.com"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/lld-link.exe"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/lld-link"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.com"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.exe"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link"
       - "D:/Program Files/Git/cmd/lld-link.com"
       - "D:/Program Files/Git/cmd/lld-link.exe"
       - "D:/Program Files/Git/cmd/lld-link"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.com"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.exe"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link"
       - "C:/Python/Python39/Scripts/lld-link.com"
       - "C:/Python/Python39/Scripts/lld-link.exe"
       - "C:/Python/Python39/Scripts/lld-link"
@@ -541,8 +541,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -617,8 +617,8 @@ events:
       - "C:/Program Files/HP/HP One Agent/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "D:/Program Files/Git/cmd/"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "C:/Python/Python39/Scripts/"
       - "C:/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python311/Scripts/"
@@ -672,8 +672,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -748,8 +748,8 @@ events:
       - "C:/Program Files/HP/HP One Agent/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "D:/Program Files/Git/cmd/"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "C:/Python/Python39/Scripts/"
       - "C:/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python311/Scripts/"
@@ -824,8 +824,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -900,8 +900,8 @@ events:
       - "C:/Program Files/HP/HP One Agent/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "D:/Program Files/Git/cmd/"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "C:/Python/Python39/Scripts/"
       - "C:/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python311/Scripts/"
@@ -955,8 +955,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -1038,8 +1038,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -1082,11 +1082,11 @@ events:
       
       The output was:
       0
-      Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35719 for x64
+      Microsoft (R) C/C++ Optimizing Compiler Version 19.50.35721 for x64
       Copyright (C) Microsoft Corporation.  All rights reserved.
       
       CMakeCXXCompilerId.cpp
-      Microsoft (R) Incremental Linker Version 14.50.35719.0
+      Microsoft (R) Incremental Linker Version 14.50.35721.0
       Copyright (C) Microsoft Corporation.  All rights reserved.
       
       /out:CMakeCXXCompilerId.exe 
@@ -1171,8 +1171,8 @@ events:
       - "C:/Program Files/HP/HP One Agent/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "D:/Program Files/Git/cmd/"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "C:/Python/Python39/Scripts/"
       - "C:/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python311/Scripts/"
@@ -1294,12 +1294,12 @@ events:
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/lld-link.com"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/lld-link.exe"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/lld-link"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.com"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.exe"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link"
       - "D:/Program Files/Git/cmd/lld-link.com"
       - "D:/Program Files/Git/cmd/lld-link.exe"
       - "D:/Program Files/Git/cmd/lld-link"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.com"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link.exe"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/lld-link"
       - "C:/Python/Python39/Scripts/lld-link.com"
       - "C:/Python/Python39/Scripts/lld-link.exe"
       - "C:/Python/Python39/Scripts/lld-link"
@@ -1375,8 +1375,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -1454,8 +1454,8 @@ events:
       - "C:/Program Files/HP/HP One Agent/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python39/Scripts/"
-      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "D:/Program Files/Git/cmd/"
+      - "C:/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit/"
       - "C:/Python/Python39/Scripts/"
       - "C:/Python/Python39/"
       - "C:/Users/magic/AppData/Local/Programs/Python/Python311/Scripts/"
@@ -1542,8 +1542,8 @@ events:
         - "C:\\Program Files\\HP\\HP One Agent"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
-        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "D:\\Program Files\\Git\\cmd"
+        - "C:\\Program Files (x86)\\Windows Kits\\10\\Windows Performance Toolkit\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\Scripts\\"
         - "C:\\Users\\magic\\AppData\\Local\\Programs\\Python\\Python39\\"
         - "C:\\Python\\Python39\\Scripts\\"
@@ -1576,8 +1576,8 @@ events:
     checks:
       - "Detecting C compiler ABI info"
     directories:
-      source: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-pihznd"
-      binary: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-pihznd"
+      source: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4ps34l"
+      binary: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4ps34l"
     cmakeVariables:
       CMAKE_C_FLAGS: "/DWIN32 /D_WINDOWS"
       CMAKE_C_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
@@ -1586,11 +1586,11 @@ events:
       variable: "CMAKE_C_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-pihznd'
+        Change Dir: 'D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-4ps34l'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_d1438
-        [1/2] C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_d1438.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_d1438.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-4.1\\Modules\\CMakeCCompilerABI.c"
-        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1950 --intdir=CMakeFiles\\cmTC_d1438.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_d1438.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_d1438.exe /implib:cmTC_d1438.lib /pdb:cmTC_d1438.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_ce8e5
+        [1/2] C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\cl.exe  /nologo   /DWIN32 /D_WINDOWS  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_ce8e5.dir\\CMakeCCompilerABI.c.obj /FdCMakeFiles\\cmTC_ce8e5.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-4.1\\Modules\\CMakeCCompilerABI.c"
+        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1950 --intdir=CMakeFiles\\cmTC_ce8e5.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_ce8e5.dir\\CMakeCCompilerABI.c.obj  /out:cmTC_ce8e5.exe /implib:cmTC_ce8e5.lib /pdb:cmTC_ce8e5.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1619,7 +1619,7 @@ events:
       - "CMakeLists.txt:2 (project)"
     message: |
       Running the C compiler's linker: "C:/PROGRA~1/MIB055~1/18/COMMUN~1/VC/Tools/MSVC/1450~1.357/bin/Hostx64/x64/link.exe" "-v"
-      Microsoft (R) Incremental Linker Version 14.50.35719.0
+      Microsoft (R) Incremental Linker Version 14.50.35721.0
       Copyright (C) Microsoft Corporation.  All rights reserved.
   -
     kind: "try_compile-v1"
@@ -1630,8 +1630,8 @@ events:
     checks:
       - "Detecting CXX compiler ABI info"
     directories:
-      source: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-rqv34g"
-      binary: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-rqv34g"
+      source: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-kwqidd"
+      binary: "D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-kwqidd"
     cmakeVariables:
       CMAKE_CXX_FLAGS: "/DWIN32 /D_WINDOWS /GR /EHsc"
       CMAKE_CXX_FLAGS_DEBUG: "/Zi /Ob0 /Od /RTC1"
@@ -1641,11 +1641,11 @@ events:
       variable: "CMAKE_CXX_ABI_COMPILED"
       cached: true
       stdout: |
-        Change Dir: 'D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-rqv34g'
+        Change Dir: 'D:/Projects/Games/Minecraft Clone/out/build/x64-Debug/CMakeFiles/CMakeScratch/TryCompile-kwqidd'
         
-        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_fc932
-        [1/2] C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /GR /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_fc932.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_fc932.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-4.1\\Modules\\CMakeCXXCompilerABI.cpp"
-        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1950 --intdir=CMakeFiles\\cmTC_fc932.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_fc932.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_fc932.exe /implib:cmTC_fc932.lib /pdb:cmTC_fc932.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+        Run Build Command(s): "C:/Program Files/Microsoft Visual Studio/18/Community/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe" -v cmTC_57be8
+        [1/2] C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\cl.exe  /nologo /TP   /DWIN32 /D_WINDOWS /GR /EHsc  /Zi /Ob0 /Od /RTC1 -MDd /showIncludes /FoCMakeFiles\\cmTC_57be8.dir\\CMakeCXXCompilerABI.cpp.obj /FdCMakeFiles\\cmTC_57be8.dir\\ /FS -c "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\share\\cmake-4.1\\Modules\\CMakeCXXCompilerABI.cpp"
+        [2/2] C:\\windows\\system32\\cmd.exe /C "cd . && "C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\CMake\\bin\\cmake.exe" -E vs_link_exe --msvc-ver=1950 --intdir=CMakeFiles\\cmTC_57be8.dir --rc=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\rc.exe --mt=C:\\PROGRA~2\\WI3CF2~1\\10\\bin\\100261~1.0\\x64\\mt.exe --manifests  -- C:\\PROGRA~1\\MIB055~1\\18\\COMMUN~1\\VC\\Tools\\MSVC\\1450~1.357\\bin\\Hostx64\\x64\\link.exe /nologo CMakeFiles\\cmTC_57be8.dir\\CMakeCXXCompilerABI.cpp.obj  /out:cmTC_57be8.exe /implib:cmTC_57be8.lib /pdb:cmTC_57be8.pdb /version:0.0 /machine:x64  /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
         
       exitCode: 0
   -
@@ -1674,6 +1674,6 @@ events:
       - "CMakeLists.txt:2 (project)"
     message: |
       Running the CXX compiler's linker: "C:/PROGRA~1/MIB055~1/18/COMMUN~1/VC/Tools/MSVC/1450~1.357/bin/Hostx64/x64/link.exe" "-v"
-      Microsoft (R) Incremental Linker Version 14.50.35719.0
+      Microsoft (R) Incremental Linker Version 14.50.35721.0
       Copyright (C) Microsoft Corporation.  All rights reserved.
 ...

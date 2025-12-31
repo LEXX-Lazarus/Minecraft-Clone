@@ -6,17 +6,18 @@
 #include <map>
 #include <vector>
 
-// 3D Chunk System - 16x16x16 blocks
+class TextureAtlas;
+
 constexpr int CHUNK_SIZE_X = 16;
-constexpr int CHUNK_SIZE_Y = 16;  // NOW 16 instead of 256!
+constexpr int CHUNK_SIZE_Y = 16;
 constexpr int CHUNK_SIZE_Z = 16;
-constexpr int MAX_HEIGHT = 100000;  // World height: 100,000 blocks = 6,250 chunks vertically
+constexpr int MAX_HEIGHT = 100000;
 
 class Chunk {
 public:
-    int chunkX, chunkY, chunkZ;  // ADDED chunkY - now 3D!
+    int chunkX, chunkY, chunkZ;
 
-    Chunk(int chunkX, int chunkY, int chunkZ);  // CHANGED: 3 parameters
+    Chunk(int chunkX, int chunkY, int chunkZ);
     ~Chunk();
 
     Block getBlock(int x, int y, int z) const;
@@ -24,17 +25,16 @@ public:
     void setBlock(int x, int y, int z, BlockType type);
 
     void setNeighbor(int direction, Chunk* neighbor);
-    Chunk* getNeighbor(int direction) const;  // ADDED getter
+    Chunk* getNeighbor(int direction) const;
 
-    void buildMesh();
+    void buildMesh(const TextureAtlas* atlas = nullptr);
     void render();
     void renderType(BlockType type);
 
     Block blocks[CHUNK_SIZE_X][CHUNK_SIZE_Y][CHUNK_SIZE_Z];
 
 private:
-    Chunk* neighbors[6];  // CHANGED: 6 neighbors (added Up/Down)
-    // 0=North(+Z), 1=South(-Z), 2=East(+X), 3=West(-X), 4=Up(+Y), 5=Down(-Y)
+    Chunk* neighbors[6];
 
     struct MeshData {
         unsigned int VAO = 0;
@@ -46,7 +46,7 @@ private:
     std::map<BlockType, MeshData> meshes;
 
     void setupMesh(MeshData& mesh, const std::vector<float>& vertices, const std::vector<unsigned int>& indices);
-    void buildMeshForType(BlockType type);
+    void buildMeshForType(BlockType type, const TextureAtlas* atlas);
 };
 
 #endif
