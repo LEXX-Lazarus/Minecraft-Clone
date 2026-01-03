@@ -9,8 +9,8 @@ Player::Player(float posX, float posY, float posZ)
     : x(posX), y(posY), z(posZ),
     velocityX(0.0f), velocityY(0.0f), velocityZ(0.0f),
     width(0.6f), height(1.8f), eyeHeight(1.0f),
-    walkSpeed(4.317f), sprintSpeed(5.612f), jumpStrength(10.0f),
-    isOnGround(false), gameMode(GameMode::SPECTATOR) {
+    walkSpeed(4.317f), sprintSpeed(6.612f), jumpStrength(10.0f),
+    flySpeed(6.5f), isOnGround(false), gameMode(GameMode::SPECTATOR) {
 }
 
 void Player::setGameMode(GameMode mode) {
@@ -21,18 +21,16 @@ void Player::setGameMode(GameMode mode) {
     }
 }
 
-void Player::processInput(float deltaFront, float deltaRight, float deltaUp, bool jump, bool sprint, Camera& camera) {
+void Player::processInput(float deltaFront, float deltaRight, float deltaUp, bool jump, bool sprint, float deltaTime, Camera& camera)
+{
     if (gameMode == GameMode::SPECTATOR) {
-        float speed = sprint ? camera.speed * 2.0f : camera.speed;
+        // Use independent fly speed
+        float speed = sprint ? flySpeed * 2.0f : flySpeed;
 
-        x += camera.frontX * deltaFront * speed;
-        y += camera.frontY * deltaFront * speed + deltaUp * speed;
-        z += camera.frontZ * deltaFront * speed;
-
-        x += camera.rightX * deltaRight * speed;
-        y += camera.rightY * deltaRight * speed;
-        z += camera.rightZ * deltaRight * speed;
-
+        // Multiply by deltaTime to make speed frame-rate independent
+        x += (camera.frontX * deltaFront + camera.rightX * deltaRight) * speed * deltaTime;
+        y += (camera.frontY * deltaFront + camera.rightY * deltaRight + deltaUp) * speed * deltaTime;
+        z += (camera.frontZ * deltaFront + camera.rightZ * deltaRight) * speed * deltaTime;
     }
     else {
         float moveX = camera.frontX * deltaFront + camera.rightX * deltaRight;

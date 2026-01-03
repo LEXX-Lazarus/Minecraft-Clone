@@ -4,6 +4,26 @@
 #include <iostream>
 #include <cstring>
 
+static bool isTransparentBlock(BlockType type) {
+    return type == Blocks::OAK_LEAVES;
+}
+
+static bool shouldRenderFace(BlockType currentType, const Block& neighbor) {
+    if (neighbor.isAir()) return true;
+
+    bool currentTransparent = isTransparentBlock(currentType);
+    bool neighborTransparent = isTransparentBlock(neighbor.type);
+
+    // Opaque block logic (standard Minecraft)
+    if (!currentTransparent) {
+        return neighbor.isAir() || neighborTransparent;
+    }
+
+    // Transparent block logic (leaves)
+    // Render face unless neighbor is SAME transparent type
+    return !(neighborTransparent && neighbor.type == currentType);
+}
+
 Chunk::Chunk(int chunkX, int chunkY, int chunkZ)
     : chunkX(chunkX), chunkY(chunkY), chunkZ(chunkZ) {
     std::memset(neighbors, 0, sizeof(neighbors));
@@ -107,11 +127,13 @@ void Chunk::buildMesh(const TextureAtlas* atlas) {
     buildMeshForType(Blocks::STONE, atlas);
     buildMeshForType(Blocks::SAND, atlas);
     buildMeshForType(Blocks::OAK_LOG, atlas);
-    buildMeshForType(Blocks::OAK_LEAVES, atlas);
     buildMeshForType(Blocks::BLOCK_OF_WHITE_LIGHT, atlas);
     buildMeshForType(Blocks::BLOCK_OF_RED_LIGHT, atlas);
     buildMeshForType(Blocks::BLOCK_OF_GREEN_LIGHT, atlas);
     buildMeshForType(Blocks::BLOCK_OF_BLUE_LIGHT, atlas);
+
+    // Build transparent blocks last for proper alpha blending
+    buildMeshForType(Blocks::OAK_LEAVES, atlas);
 }
 
 void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
@@ -167,7 +189,7 @@ void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
                 const float zMin = worldZ - 0.5f;
                 const float zMax = worldZ + 0.5f;
 
-                if (topBlock.isAir()) {
+                if (shouldRenderFace(targetType, topBlock)) {
                     const float v[] = {
                         xMin, yMax, zMax, topUV.uMin, topUV.vMin,
                         xMax, yMax, zMax, topUV.uMax, topUV.vMin,
@@ -181,7 +203,7 @@ void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
                     vertexCount += 4;
                 }
 
-                if (bottomBlock.isAir()) {
+                if (shouldRenderFace(targetType, bottomBlock)) {
                     const float v[] = {
                         xMin, yMin, zMin, bottomUV.uMin, bottomUV.vMin,
                         xMax, yMin, zMin, bottomUV.uMax, bottomUV.vMin,
@@ -195,7 +217,7 @@ void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
                     vertexCount += 4;
                 }
 
-                if (southBlock.isAir()) {
+                if (shouldRenderFace(targetType, southBlock)) {
                     const float v[] = {
                         xMin, yMin, zMax, sideUV.uMin, sideUV.vMin,
                         xMax, yMin, zMax, sideUV.uMax, sideUV.vMin,
@@ -209,7 +231,7 @@ void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
                     vertexCount += 4;
                 }
 
-                if (northBlock.isAir()) {
+                if (shouldRenderFace(targetType, northBlock)) {
                     const float v[] = {
                         xMax, yMin, zMin, sideUV.uMin, sideUV.vMin,
                         xMin, yMin, zMin, sideUV.uMax, sideUV.vMin,
@@ -223,7 +245,7 @@ void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
                     vertexCount += 4;
                 }
 
-                if (eastBlock.isAir()) {
+                if (shouldRenderFace(targetType, eastBlock)) {
                     const float v[] = {
                         xMax, yMin, zMax, sideUV.uMin, sideUV.vMin,
                         xMax, yMin, zMin, sideUV.uMax, sideUV.vMin,
@@ -237,7 +259,7 @@ void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
                     vertexCount += 4;
                 }
 
-                if (westBlock.isAir()) {
+                if (shouldRenderFace(targetType, westBlock)) {
                     const float v[] = {
                         xMin, yMin, zMin, sideUV.uMin, sideUV.vMin,
                         xMin, yMin, zMax, sideUV.uMax, sideUV.vMin,

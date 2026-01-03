@@ -26,6 +26,7 @@ public:
     float walkSpeed;
     float sprintSpeed;
     float jumpStrength;
+    float flySpeed;
 
     // Physics state
     bool isOnGround;
@@ -33,7 +34,7 @@ public:
 
     Player(float posX, float posY, float posZ);
 
-    void processInput(float deltaFront, float deltaRight, float deltaUp, bool jump, bool sprint, Camera& camera);
+    void processInput(float deltaFront, float deltaRight, float deltaUp, bool jump, bool sprint, float deltaTime, Camera& camera);
     void update(float deltaTime, ChunkManager* chunkManager, Camera& camera);
     void setGameMode(GameMode mode);
     GameMode getGameMode() const { return gameMode; }

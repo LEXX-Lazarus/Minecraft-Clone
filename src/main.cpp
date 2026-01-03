@@ -55,7 +55,14 @@ in vec2 texCoord;
 uniform sampler2D ourTexture;
 void main()
 {
-    FragColor = texture(ourTexture, texCoord);
+    vec4 texColor = texture(ourTexture, texCoord);
+    
+    // Discard fully transparent pixels
+    if(texColor.a < 0.1) {
+        discard;
+    }
+    
+    FragColor = texColor;
 }
 )";
 
@@ -112,6 +119,10 @@ int main(int argc, char* argv[]) {
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
+    // Enable alpha blending for transparency
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     PauseMenu pauseMenu;
     pauseMenu.initialize();
 
@@ -138,9 +149,9 @@ int main(int argc, char* argv[]) {
     float spawnZ = 0.0f;
     float spawnY = 270.0f;
 
-    ChunkManager chunkManager(12);
+    ChunkManager chunkManager(24);
     chunkManager.setTextureAtlas(&atlas);
-    chunkManager.setVerticalRenderDistance(6);
+    chunkManager.setVerticalRenderDistance(5);
 
     int blockX = static_cast<int>(std::round(spawnX));
     int blockZ = static_cast<int>(std::round(-spawnZ));
@@ -330,7 +341,7 @@ int main(int argc, char* argv[]) {
                 if (keyState[SDL_SCANCODE_SPACE]) jump = true;
             }
 
-            player.processInput(deltaFront, deltaRight, deltaUp, jump, sprint, camera);
+            player.processInput(deltaFront, deltaRight, deltaUp, jump, sprint, deltaTime, camera);
             camera.processZoom(zoom, deltaTime);
             player.update(deltaTime, &chunkManager, camera);
             chunkManager.update(player.x, player.y, player.z);
@@ -366,16 +377,8 @@ int main(int argc, char* argv[]) {
         atlas.bind();
 
         // Render all block types
-        chunkManager.renderType(Blocks::GRASS);
-        chunkManager.renderType(Blocks::DIRT);
-        chunkManager.renderType(Blocks::STONE);
-        chunkManager.renderType(Blocks::SAND);
-        chunkManager.renderType(Blocks::OAK_LOG);
-        chunkManager.renderType(Blocks::OAK_LEAVES);
-        chunkManager.renderType(Blocks::BLOCK_OF_WHITE_LIGHT);
-        chunkManager.renderType(Blocks::BLOCK_OF_RED_LIGHT);
-        chunkManager.renderType(Blocks::BLOCK_OF_GREEN_LIGHT);
-        chunkManager.renderType(Blocks::BLOCK_OF_BLUE_LIGHT);
+        atlas.bind();
+        chunkManager.render();
 
         // Render UI elements
         if (!window.isPaused()) {

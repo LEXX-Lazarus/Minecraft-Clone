@@ -119,48 +119,34 @@ void ChunkManager::update(float playerX, float playerY, float playerZ) {
 }
 
 void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
-    // ========== FIX #1: SMART QUEUE FILTER ==========
-    // OLD CODE: Destroyed entire queue every frame with std::swap(generationQueue, empty)
-    // NEW CODE: Only remove chunks that are truly distant, keep nearby work
+    // 1. Filter the existing queue to remove chunks that have moved too far away
     {
         std::lock_guard<std::mutex> lock(mutex);
-        
         std::queue<std::tuple<int, int, int>> filteredQueue;
         const int keepDistance = (renderDistance + 6) * (renderDistance + 6);
-        
-        // Filter the queue instead of destroying it
+
         while (!generationQueue.empty()) {
             auto coords = generationQueue.front();
             generationQueue.pop();
-            
-            int cx = std::get<0>(coords);
-            int cy = std::get<1>(coords);
-            int cz = std::get<2>(coords);
-            
-            int dx = cx - pcx;
-            int dy = cy - pcy;
-            int dz = cz - pcz;
-            
-            // Keep if still within extended range
+
+            int dx = std::get<0>(coords) - pcx;
+            int dy = std::get<1>(coords) - pcy;
+            int dz = std::get<2>(coords) - pcz;
+
             if (dx * dx + dy * dy + dz * dz <= keepDistance) {
                 filteredQueue.push(coords);
-            } else {
-                // Remove from queued set only if we're discarding it
-                queuedChunks.erase(makeKey(cx, cy, cz));
+            }
+            else {
+                queuedChunks.erase(makeKey(std::get<0>(coords), std::get<1>(coords), std::get<2>(coords)));
             }
         }
-        
         generationQueue = std::move(filteredQueue);
-        
-        // Preserve chunks currently being generated
-        for (const auto& c : chunksBeingGenerated) {
-            queuedChunks.insert(makeKey(std::get<0>(c), std::get<1>(c), std::get<2>(c)));
-        }
     }
 
-    const int estimatedChunks = (2 * renderDistance + 1) * (2 * renderDistance + 1) * (2 * verticalRenderDistance + 1);
+    // 2. Identify all chunks within the render distance
     std::vector<ChunkDistanceEntry> ordered;
-    ordered.reserve(estimatedChunks);
+    int estimatedSize = (renderDistance * 2) * (renderDistance * 2) * (verticalRenderDistance * 2);
+    ordered.reserve(estimatedSize);
 
     for (int dx = -renderDistance; dx <= renderDistance; dx++) {
         for (int dz = -renderDistance; dz <= renderDistance; dz++) {
@@ -172,88 +158,60 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
                 int cy = pcy + dy;
                 int cz = pcz + dz;
 
-                if (cy < 0 || cy >= 6250) continue;
-
+                if (cy < 0 || cy >= 6250) continue; // Boundary check
                 ordered.push_back({ cx, cy, cz, distSqXZ });
             }
         }
     }
 
-    // ========== FIX #3: DIRECTIONAL PRIORITY ==========
-    // Calculate player movement direction for smart prioritization
+    // 3. Sort by distance and movement direction (Priority Loading)
     int moveX = pcx - lastPlayerChunkX;
     int moveZ = pcz - lastPlayerChunkZ;
-    
-    std::sort(ordered.begin(), ordered.end(), [pcx, pcz, moveX, moveZ](const ChunkDistanceEntry& a, const ChunkDistanceEntry& b) {
-        // Primary sort: distance (closer chunks first)
-        if (a.distSq != b.distSq) {
-            return a.distSq < b.distSq;
-        }
-        
-        // Secondary sort: direction of travel (if moving)
-        if (moveX != 0 || moveZ != 0) {
-            int aDirX = a.x - pcx;
-            int aDirZ = a.z - pcz;
-            int bDirX = b.x - pcx;
-            int bDirZ = b.z - pcz;
-            
-            // Dot product with movement direction (positive = ahead of player)
-            int aDot = aDirX * moveX + aDirZ * moveZ;
-            int bDot = bDirX * moveX + bDirZ * moveZ;
-            
-            if (aDot != bDot) {
-                return aDot > bDot; // Prioritize chunks ahead of player
-            }
-        }
-        
-        return false;
-    });
 
-    // ========== FIX #2 & #4: QUEUE FIRST, ADAPTIVE BATCHING ==========
-    // OLD CODE: unloadDistantChunks() ran HERE (before queueing)
-    // NEW CODE: Queue priority chunks FIRST, then unload
-    int queued = 0;
-    
-    // ADAPTIVE BATCH LIMIT based on movement speed and queue state
-    int maxQueuePerUpdate;
-    bool isMovingFast = (moveX * moveX + moveZ * moveZ) > 4; // Moving more than 2 chunks per update
-    
-    if (isMovingFast) {
-        // Fast movement: limit batching to prioritize direction
-        maxQueuePerUpdate = 96;
-    } else {
-        // Stationary or slow: aggressively load everything in render distance
-        maxQueuePerUpdate = 128; // Load all visible chunks quickly
-    }
-    
+    std::sort(ordered.begin(), ordered.end(), [pcx, pcz, moveX, moveZ](const ChunkDistanceEntry& a, const ChunkDistanceEntry& b) {
+        if (a.distSq != b.distSq) return a.distSq < b.distSq;
+
+        if (moveX != 0 || moveZ != 0) {
+            int aDot = (a.x - pcx) * moveX + (a.z - pcz) * moveZ;
+            int bDot = (b.x - pcx) * moveX + (b.z - pcz) * moveZ;
+            if (aDot != bDot) return aDot > bDot;
+        }
+        return false;
+        });
+
+    // 4. Fill the generation queue
+    // We removed the 'break' to ensure we check the whole radius.
+    // We only limit the total queue size to prevent massive memory spikes.
+    int newlyQueued = 0;
+    const int maxTotalQueue = 128; // Allow a large enough buffer for the background threads
+
     for (const auto& entry : ordered) {
-        if (queued >= maxQueuePerUpdate) break;
-        
         long long key = makeKey(entry.x, entry.y, entry.z);
 
-        bool skip = false;
+        // Check if already in memory
         {
             std::lock_guard<std::mutex> chunkLock(chunksMutex);
-            if (chunks.count(key)) skip = true;
+            if (chunks.find(key) != chunks.end()) continue;
         }
-        if (skip) continue;
 
+        // Check if already in queue
         {
             std::lock_guard<std::mutex> lock(mutex);
-            if (queuedChunks.count(key)) continue;
+            if (queuedChunks.find(key) != queuedChunks.end()) continue;
+
+            if (generationQueue.size() >= maxTotalQueue) break;
 
             queuedChunks.insert(key);
             generationQueue.push({ entry.x, entry.y, entry.z });
-            queued++;
+            newlyQueued++;
         }
     }
 
-    if (queued > 0) {
+    if (newlyQueued > 0) {
         queueCV.notify_all();
     }
 
-    // ========== FIX #2: UNLOAD AFTER QUEUEING ==========
-    // Moved from line 172 to here - prioritizes loading over unloading
+    // 5. Clean up distant chunks
     unloadDistantChunks(pcx, pcy, pcz);
 }
 
