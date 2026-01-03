@@ -96,14 +96,12 @@ bool TextureAtlas::buildAtlas(const std::string& directoryPath) {
             << "] ID=" << type.toID() << std::endl;
     }
     std::cout << "===========================================" << std::endl;
-    std::cout << "\nNOW BUILDING BLOCKTYPEMAP..." << std::endl;
 
     atlasWidth = cellWidth;
     atlasHeight = cellHeight * static_cast<int>(textureFiles.size());
 
     std::vector<unsigned char> atlasData(atlasWidth * atlasHeight * 4, 0);
 
-    // IMPORTANT FIX:
     // Pack atlas rows from BOTTOM to TOP so row 0 is at the bottom (OpenGL-friendly)
     for (size_t i = 0; i < textureFiles.size(); ++i) {
         int w, h, channels;
@@ -128,10 +126,6 @@ bool TextureAtlas::buildAtlas(const std::string& directoryPath) {
             std::string filename = fs::path(textureFiles[i]).filename().string();
             BlockType type = stringToBlockType(filename);
             blockRowMap[type] = static_cast<int>(i);
-
-            std::cout << "  blockRowMap[BlockType(" << static_cast<int>(type.category)
-                << "," << static_cast<int>(type.variant)
-                << ")] = Atlas Row " << i << std::endl;
 
             stbi_image_free(data);
         }
@@ -160,23 +154,11 @@ bool TextureAtlas::buildAtlas(const std::string& directoryPath) {
 TextureRect TextureAtlas::getFaceUVs(BlockType type, int faceIndex) const {
     auto it = blockRowMap.find(type);
     if (it == blockRowMap.end()) {
-        std::cout << "ERROR: BlockType(" << static_cast<int>(type.category)
-            << "," << static_cast<int>(type.variant)
-            << ") NOT FOUND in blockRowMap!" << std::endl;
         return { 0.0f, 0.0f, 0.0f, 0.0f };
     }
 
     int row = it->second;
-
-    static int debugCount = 0;
-    if (debugCount < 10) {  // Only print first 10 lookups
-        std::cout << "getFaceUVs: BlockType(" << static_cast<int>(type.category)
-            << "," << static_cast<int>(type.variant)
-            << ") face=" << faceIndex << " -> Atlas Row " << row << std::endl;
-        debugCount++;
-    }
-
-    int localX = 0, localY = 0;
+    int localX, localY;
 
     // Texture layout: [Top] / [L][F][R][B] / [Bottom]
     // Each face is 16x16 within 64x48 texture
@@ -190,21 +172,17 @@ TextureRect TextureAtlas::getFaceUVs(BlockType type, int faceIndex) const {
         localY = 32;
     }
     else { // Sides - ALL use FRONT face (middle texture at x=16)
-        localX = 16;  // FIXED: was (faceIndex-2)*16 which gave 0,16,32,48
+        localX = 16;
         localY = 16;
     }
 
     int pixelY = (row * cellHeight) + localY;
 
+    // Pre-compute divisions (these are constants after atlas build)
     float uMin = static_cast<float>(localX) / static_cast<float>(atlasWidth);
     float vMin = 1.0f - (static_cast<float>(pixelY + 16) / static_cast<float>(atlasHeight));
     float uMax = uMin + (16.0f / static_cast<float>(atlasWidth));
     float vMax = vMin + (16.0f / static_cast<float>(atlasHeight));
-
-    if (debugCount < 10) {
-        std::cout << "  -> UV coords: (" << uMin << "," << vMin << ") to (" << uMax << "," << vMax << ")" << std::endl;
-        std::cout << "  -> pixelY=" << pixelY << ", atlasHeight=" << atlasHeight << std::endl;
-    }
 
     return { uMin, vMin, uMax, vMax };
 }

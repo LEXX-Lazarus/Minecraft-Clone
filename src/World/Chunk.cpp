@@ -107,16 +107,23 @@ Chunk* Chunk::getNeighbor(int direction) const {
 }
 
 void Chunk::buildMesh(const TextureAtlas* atlas) {
-    buildMeshForType(Blocks::GRASS, atlas);  // was: BlockType::GRASS
-    buildMeshForType(Blocks::DIRT, atlas);   // was: BlockType::DIRT
-    buildMeshForType(Blocks::STONE, atlas);  // was: BlockType::STONE
+    buildMeshForType(Blocks::GRASS, atlas);
+    buildMeshForType(Blocks::DIRT, atlas);
+    buildMeshForType(Blocks::STONE, atlas);
 }
 
 void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
+
+    // OPTIMIZATION: Pre-allocate memory to avoid reallocations
+    // Worst case: all blocks visible with all 6 faces = 4096 * 6 * 4 vertices
+    vertices.reserve(4096 * 6 * 5);  // 5 floats per vertex (pos + UV)
+    indices.reserve(4096 * 6 * 6);    // 6 indices per face
+
     unsigned int vertexCount = 0;
 
+    // OPTIMIZATION: Cache UV coordinates outside loop (they're the same for all blocks of this type)
     TextureRect topUV = atlas ? atlas->getFaceUVs(targetType, 0) : TextureRect{ 0.25f, 0.666f, 0.5f, 1.0f };
     TextureRect bottomUV = atlas ? atlas->getFaceUVs(targetType, 1) : TextureRect{ 0.25f, 0.0f, 0.5f, 0.333f };
     TextureRect sideUV = atlas ? atlas->getFaceUVs(targetType, 2) : TextureRect{ 0.25f, 0.333f, 0.5f, 0.666f };

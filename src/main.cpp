@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     float spawnZ = 0.0f;
     float spawnY = 270.0f;
 
-    ChunkManager chunkManager(6);
+    ChunkManager chunkManager(10);
     chunkManager.setTextureAtlas(&atlas);
     chunkManager.setVerticalRenderDistance(6);
 

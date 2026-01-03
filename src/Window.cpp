@@ -48,7 +48,7 @@ bool Window::initialize() {
         return false;
     }
 
-    SDL_GL_SetSwapInterval(1);
+    SDL_GL_SetSwapInterval(0); // VSync OFF (uncapped FPS for profiling)
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
     return true;
