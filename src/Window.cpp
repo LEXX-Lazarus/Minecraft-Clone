@@ -26,6 +26,10 @@ bool Window::initialize() {
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 
+    // Enable double buffering and depth buffer for better performance
+    SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
+    SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+
     window = SDL_CreateWindow(
         title.c_str(),
         width, height,
@@ -49,34 +53,35 @@ bool Window::initialize() {
     }
 
     SDL_GL_SetSwapInterval(0); // VSync OFF (uncapped FPS for profiling)
+
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
     return true;
 }
 
 void Window::toggleFullscreen() {
-    // Get current mouse position in old coordinate system
+    // Cache mouse state to avoid multiple SDL calls
     float mouseX, mouseY;
     SDL_GetMouseState(&mouseX, &mouseY);
 
-    // Calculate normalized position (0.0 to 1.0)
-    float normalizedX = mouseX / width;
-    float normalizedY = mouseY / height;
+    // Calculate normalized position using cached width/height
+    const float invWidth = 1.0f / static_cast<float>(width);
+    const float invHeight = 1.0f / static_cast<float>(height);
+    const float normalizedX = mouseX * invWidth;
+    const float normalizedY = mouseY * invHeight;
 
     fullscreen = !fullscreen;
 
-    if (fullscreen) {
-        SDL_SetWindowFullscreen(window, true);
-    }
-    else {
-        SDL_SetWindowFullscreen(window, false);
-    }
+    // Single SDL call for fullscreen toggle
+    SDL_SetWindowFullscreen(window, fullscreen);
 
-    // SDL updates width/height after fullscreen change, so get new dimensions
+    // Get new dimensions after fullscreen change
     SDL_GetWindowSize(window, &width, &height);
 
     // Warp mouse to same normalized position in new coordinate system
-    SDL_WarpMouseInWindow(window, normalizedX * width, normalizedY * height);
+    SDL_WarpMouseInWindow(window,
+        static_cast<float>(normalizedX * width),
+        static_cast<float>(normalizedY * height));
 }
 
 void Window::togglePause() {

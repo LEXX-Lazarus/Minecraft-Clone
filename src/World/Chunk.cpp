@@ -2,12 +2,11 @@
 #include "Rendering/TextureAtlas.h"
 #include <vector>
 #include <iostream>
+#include <cstring>
 
 Chunk::Chunk(int chunkX, int chunkY, int chunkZ)
     : chunkX(chunkX), chunkY(chunkY), chunkZ(chunkZ) {
-    for (int i = 0; i < 6; i++) {
-        neighbors[i] = nullptr;
-    }
+    std::memset(neighbors, 0, sizeof(neighbors));
 
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
@@ -39,6 +38,16 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
         return Block(Blocks::AIR);
     }
 
+    int localX = worldX - (chunkX * CHUNK_SIZE_X);
+    int localY = worldY - (chunkY * CHUNK_SIZE_Y);
+    int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
+
+    if (localX >= 0 && localX < CHUNK_SIZE_X &&
+        localY >= 0 && localY < CHUNK_SIZE_Y &&
+        localZ >= 0 && localZ < CHUNK_SIZE_Z) {
+        return blocks[localX][localY][localZ];
+    }
+
     int targetChunkX = worldX / CHUNK_SIZE_X;
     if (worldX < 0 && worldX % CHUNK_SIZE_X != 0) targetChunkX--;
 
@@ -47,20 +56,6 @@ Block Chunk::getBlockWorld(int worldX, int worldY, int worldZ) const {
 
     int targetChunkZ = worldZ / CHUNK_SIZE_Z;
     if (worldZ < 0 && worldZ % CHUNK_SIZE_Z != 0) targetChunkZ--;
-
-    if (targetChunkX == chunkX && targetChunkY == chunkY && targetChunkZ == chunkZ) {
-        int localX = worldX - (chunkX * CHUNK_SIZE_X);
-        int localY = worldY - (chunkY * CHUNK_SIZE_Y);
-        int localZ = worldZ - (chunkZ * CHUNK_SIZE_Z);
-
-        if (localX < 0 || localX >= CHUNK_SIZE_X ||
-            localY < 0 || localY >= CHUNK_SIZE_Y ||
-            localZ < 0 || localZ >= CHUNK_SIZE_Z) {
-            return Block(Blocks::AIR);
-        }
-
-        return blocks[localX][localY][localZ];
-    }
 
     int deltaX = targetChunkX - chunkX;
     int deltaY = targetChunkY - chunkY;
@@ -110,126 +105,149 @@ void Chunk::buildMesh(const TextureAtlas* atlas) {
     buildMeshForType(Blocks::GRASS, atlas);
     buildMeshForType(Blocks::DIRT, atlas);
     buildMeshForType(Blocks::STONE, atlas);
+    buildMeshForType(Blocks::SAND, atlas);
+    buildMeshForType(Blocks::OAK_LOG, atlas);
+    buildMeshForType(Blocks::OAK_LEAVES, atlas);
+    buildMeshForType(Blocks::BLOCK_OF_WHITE_LIGHT, atlas);
+    buildMeshForType(Blocks::BLOCK_OF_RED_LIGHT, atlas);
+    buildMeshForType(Blocks::BLOCK_OF_GREEN_LIGHT, atlas);
+    buildMeshForType(Blocks::BLOCK_OF_BLUE_LIGHT, atlas);
 }
 
 void Chunk::buildMeshForType(BlockType targetType, const TextureAtlas* atlas) {
     std::vector<float> vertices;
     std::vector<unsigned int> indices;
 
-    // OPTIMIZATION: Pre-allocate memory to avoid reallocations
-    // Worst case: all blocks visible with all 6 faces = 4096 * 6 * 4 vertices
-    vertices.reserve(4096 * 6 * 5);  // 5 floats per vertex (pos + UV)
-    indices.reserve(4096 * 6 * 6);    // 6 indices per face
+    vertices.reserve(32768);
+    indices.reserve(49152);
 
     unsigned int vertexCount = 0;
 
-    // OPTIMIZATION: Cache UV coordinates outside loop (they're the same for all blocks of this type)
-    TextureRect topUV = atlas ? atlas->getFaceUVs(targetType, 0) : TextureRect{ 0.25f, 0.666f, 0.5f, 1.0f };
-    TextureRect bottomUV = atlas ? atlas->getFaceUVs(targetType, 1) : TextureRect{ 0.25f, 0.0f, 0.5f, 0.333f };
-    TextureRect sideUV = atlas ? atlas->getFaceUVs(targetType, 2) : TextureRect{ 0.25f, 0.333f, 0.5f, 0.666f };
+    const TextureRect topUV = atlas ? atlas->getFaceUVs(targetType, 0) : TextureRect{ 0.25f, 0.666f, 0.5f, 1.0f };
+    const TextureRect bottomUV = atlas ? atlas->getFaceUVs(targetType, 1) : TextureRect{ 0.25f, 0.0f, 0.5f, 0.333f };
+    const TextureRect sideUV = atlas ? atlas->getFaceUVs(targetType, 2) : TextureRect{ 0.25f, 0.333f, 0.5f, 0.666f };
+
+    const float chunkWorldX = static_cast<float>(chunkX * CHUNK_SIZE_X);
+    const float chunkWorldY = static_cast<float>(chunkY * CHUNK_SIZE_Y);
+    const float chunkWorldZ = static_cast<float>(chunkZ * CHUNK_SIZE_Z);
+
+    const int blockWorldXBase = chunkX * CHUNK_SIZE_X;
+    const int blockWorldYBase = chunkY * CHUNK_SIZE_Y;
+    const int blockWorldZBase = chunkZ * CHUNK_SIZE_Z;
+
+    const unsigned int indexPattern[6] = { 0, 1, 2, 2, 3, 0 };
 
     for (int x = 0; x < CHUNK_SIZE_X; x++) {
+        const int blockWorldX = blockWorldXBase + x;
+        const float worldX = chunkWorldX + x;
+
         for (int y = 0; y < CHUNK_SIZE_Y; y++) {
+            const int blockWorldY = blockWorldYBase + y;
+            const float worldY = chunkWorldY + y;
+
             for (int z = 0; z < CHUNK_SIZE_Z; z++) {
-                Block block = getBlock(x, y, z);
+                const Block& block = blocks[x][y][z];
 
                 if (block.isAir() || block.type != targetType) continue;
 
-                float worldX = chunkX * CHUNK_SIZE_X + x;
-                float worldY = chunkY * CHUNK_SIZE_Y + y;
-                float worldZ = -(chunkZ * CHUNK_SIZE_Z + z);
+                const int blockWorldZ = blockWorldZBase + z;
+                const float worldZ = -(chunkWorldZ + z);
 
-                int blockWorldX = chunkX * CHUNK_SIZE_X + x;
-                int blockWorldY = chunkY * CHUNK_SIZE_Y + y;
-                int blockWorldZ = chunkZ * CHUNK_SIZE_Z + z;
+                const Block topBlock = getBlockWorld(blockWorldX, blockWorldY + 1, blockWorldZ);
+                const Block bottomBlock = getBlockWorld(blockWorldX, blockWorldY - 1, blockWorldZ);
+                const Block southBlock = getBlockWorld(blockWorldX, blockWorldY, blockWorldZ - 1);
+                const Block northBlock = getBlockWorld(blockWorldX, blockWorldY, blockWorldZ + 1);
+                const Block eastBlock = getBlockWorld(blockWorldX + 1, blockWorldY, blockWorldZ);
+                const Block westBlock = getBlockWorld(blockWorldX - 1, blockWorldY, blockWorldZ);
 
-                // Top face
-                if (getBlockWorld(blockWorldX, blockWorldY + 1, blockWorldZ).isAir()) {
-                    vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   topUV.uMin, topUV.vMin,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   topUV.uMax, topUV.vMin,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   topUV.uMax, topUV.vMax,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   topUV.uMin, topUV.vMax
-                        });
-                    indices.insert(indices.end(), {
-                        vertexCount, vertexCount + 1, vertexCount + 2,
-                        vertexCount + 2, vertexCount + 3, vertexCount
-                        });
+                const float xMin = worldX - 0.5f;
+                const float xMax = worldX + 0.5f;
+                const float yMin = worldY - 0.5f;
+                const float yMax = worldY + 0.5f;
+                const float zMin = worldZ - 0.5f;
+                const float zMax = worldZ + 0.5f;
+
+                if (topBlock.isAir()) {
+                    const float v[] = {
+                        xMin, yMax, zMax, topUV.uMin, topUV.vMin,
+                        xMax, yMax, zMax, topUV.uMax, topUV.vMin,
+                        xMax, yMax, zMin, topUV.uMax, topUV.vMax,
+                        xMin, yMax, zMin, topUV.uMin, topUV.vMax
+                    };
+                    vertices.insert(vertices.end(), v, v + 20);
+                    for (int i = 0; i < 6; i++) {
+                        indices.push_back(vertexCount + indexPattern[i]);
+                    }
                     vertexCount += 4;
                 }
 
-                // Bottom face
-                if (getBlockWorld(blockWorldX, blockWorldY - 1, blockWorldZ).isAir()) {
-                    vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   bottomUV.uMin, bottomUV.vMin,
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   bottomUV.uMax, bottomUV.vMin,
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   bottomUV.uMax, bottomUV.vMax,
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   bottomUV.uMin, bottomUV.vMax
-                        });
-                    indices.insert(indices.end(), {
-                        vertexCount, vertexCount + 1, vertexCount + 2,
-                        vertexCount + 2, vertexCount + 3, vertexCount
-                        });
+                if (bottomBlock.isAir()) {
+                    const float v[] = {
+                        xMin, yMin, zMin, bottomUV.uMin, bottomUV.vMin,
+                        xMax, yMin, zMin, bottomUV.uMax, bottomUV.vMin,
+                        xMax, yMin, zMax, bottomUV.uMax, bottomUV.vMax,
+                        xMin, yMin, zMax, bottomUV.uMin, bottomUV.vMax
+                    };
+                    vertices.insert(vertices.end(), v, v + 20);
+                    for (int i = 0; i < 6; i++) {
+                        indices.push_back(vertexCount + indexPattern[i]);
+                    }
                     vertexCount += 4;
                 }
 
-                // South face
-                if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ - 1).isAir()) {
-                    vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMin,
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMin,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMax,
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMax
-                        });
-                    indices.insert(indices.end(), {
-                        vertexCount, vertexCount + 1, vertexCount + 2,
-                        vertexCount + 2, vertexCount + 3, vertexCount
-                        });
+                if (southBlock.isAir()) {
+                    const float v[] = {
+                        xMin, yMin, zMax, sideUV.uMin, sideUV.vMin,
+                        xMax, yMin, zMax, sideUV.uMax, sideUV.vMin,
+                        xMax, yMax, zMax, sideUV.uMax, sideUV.vMax,
+                        xMin, yMax, zMax, sideUV.uMin, sideUV.vMax
+                    };
+                    vertices.insert(vertices.end(), v, v + 20);
+                    for (int i = 0; i < 6; i++) {
+                        indices.push_back(vertexCount + indexPattern[i]);
+                    }
                     vertexCount += 4;
                 }
 
-                // North face
-                if (getBlockWorld(blockWorldX, blockWorldY, blockWorldZ + 1).isAir()) {
-                    vertices.insert(vertices.end(), {
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMin,
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMin,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMax,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMax
-                        });
-                    indices.insert(indices.end(), {
-                        vertexCount, vertexCount + 1, vertexCount + 2,
-                        vertexCount + 2, vertexCount + 3, vertexCount
-                        });
+                if (northBlock.isAir()) {
+                    const float v[] = {
+                        xMax, yMin, zMin, sideUV.uMin, sideUV.vMin,
+                        xMin, yMin, zMin, sideUV.uMax, sideUV.vMin,
+                        xMin, yMax, zMin, sideUV.uMax, sideUV.vMax,
+                        xMax, yMax, zMin, sideUV.uMin, sideUV.vMax
+                    };
+                    vertices.insert(vertices.end(), v, v + 20);
+                    for (int i = 0; i < 6; i++) {
+                        indices.push_back(vertexCount + indexPattern[i]);
+                    }
                     vertexCount += 4;
                 }
 
-                // East face
-                if (getBlockWorld(blockWorldX + 1, blockWorldY, blockWorldZ).isAir()) {
-                    vertices.insert(vertices.end(), {
-                        worldX + 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMin,
-                        worldX + 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMin,
-                        worldX + 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMax, sideUV.vMax,
-                        worldX + 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMin, sideUV.vMax
-                        });
-                    indices.insert(indices.end(), {
-                        vertexCount, vertexCount + 1, vertexCount + 2,
-                        vertexCount + 2, vertexCount + 3, vertexCount
-                        });
+                if (eastBlock.isAir()) {
+                    const float v[] = {
+                        xMax, yMin, zMax, sideUV.uMin, sideUV.vMin,
+                        xMax, yMin, zMin, sideUV.uMax, sideUV.vMin,
+                        xMax, yMax, zMin, sideUV.uMax, sideUV.vMax,
+                        xMax, yMax, zMax, sideUV.uMin, sideUV.vMax
+                    };
+                    vertices.insert(vertices.end(), v, v + 20);
+                    for (int i = 0; i < 6; i++) {
+                        indices.push_back(vertexCount + indexPattern[i]);
+                    }
                     vertexCount += 4;
                 }
 
-                // West face
-                if (getBlockWorld(blockWorldX - 1, blockWorldY, blockWorldZ).isAir()) {
-                    vertices.insert(vertices.end(), {
-                        worldX - 0.5f, worldY - 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMin,
-                        worldX - 0.5f, worldY - 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMin,
-                        worldX - 0.5f, worldY + 0.5f, worldZ + 0.5f,   sideUV.uMax, sideUV.vMax,
-                        worldX - 0.5f, worldY + 0.5f, worldZ - 0.5f,   sideUV.uMin, sideUV.vMax
-                        });
-                    indices.insert(indices.end(), {
-                        vertexCount, vertexCount + 1, vertexCount + 2,
-                        vertexCount + 2, vertexCount + 3, vertexCount
-                        });
+                if (westBlock.isAir()) {
+                    const float v[] = {
+                        xMin, yMin, zMin, sideUV.uMin, sideUV.vMin,
+                        xMin, yMin, zMax, sideUV.uMax, sideUV.vMin,
+                        xMin, yMax, zMax, sideUV.uMax, sideUV.vMax,
+                        xMin, yMax, zMin, sideUV.uMin, sideUV.vMax
+                    };
+                    vertices.insert(vertices.end(), v, v + 20);
+                    for (int i = 0; i < 6; i++) {
+                        indices.push_back(vertexCount + indexPattern[i]);
+                    }
                     vertexCount += 4;
                 }
             }
@@ -265,6 +283,7 @@ void Chunk::setupMesh(MeshData& mesh, const std::vector<float>& vertices, const 
     glBindVertexArray(0);
 }
 
+// **CRITICAL FIX**: Render ALL meshes in single pass
 void Chunk::render() {
     for (auto& pair : meshes) {
         MeshData& mesh = pair.second;
@@ -272,14 +291,15 @@ void Chunk::render() {
 
         glBindVertexArray(mesh.VAO);
         glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
-        glBindVertexArray(0);
     }
+    glBindVertexArray(0);  // Unbind once at the end
 }
 
 void Chunk::renderType(BlockType type) {
-    if (meshes.find(type) == meshes.end()) return;
+    auto it = meshes.find(type);
+    if (it == meshes.end()) return;
 
-    MeshData& mesh = meshes[type];
+    MeshData& mesh = it->second;
     if (mesh.indexCount == 0) return;
 
     glBindVertexArray(mesh.VAO);

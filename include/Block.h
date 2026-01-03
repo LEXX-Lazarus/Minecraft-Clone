@@ -12,7 +12,8 @@ enum class BlockCategory : uint16_t {
     GRASS = 3,
     SAND = 4,
     LOG = 5,
-    LIGHT = 6,
+    LEAVES = 6,
+    LIGHT = 7,
 };
 
 // Full block type (ROW, COLUMN)
@@ -67,6 +68,8 @@ namespace Blocks {
     const BlockType SAND = BlockType(BlockCategory::SAND, 0);
     ///////////////////////////////////////////////////////////////////////////
     const BlockType OAK_LOG = BlockType(BlockCategory::LOG, 0);
+    ///////////////////////////////////////////////////////////////////////////
+    const BlockType OAK_LEAVES = BlockType(BlockCategory::LEAVES, 0);
     ///////////////////////////////////////////////////////////////////////////
     const BlockType BLOCK_OF_WHITE_LIGHT = BlockType(BlockCategory::LIGHT, 0);
     const BlockType BLOCK_OF_RED_LIGHT = BlockType(BlockCategory::LIGHT, 1);

@@ -128,7 +128,6 @@ int main(int argc, char* argv[]) {
 
     Shader shader(vertexShaderSource, fragmentShaderSource);
 
-    // Build atlas: 64x48 per texture, stacked vertically
     TextureAtlas atlas(64, 48);
     if (!atlas.buildAtlas("assets/textures/blocks/")) {
         std::cerr << "Failed to build texture atlas!" << std::endl;
@@ -139,7 +138,7 @@ int main(int argc, char* argv[]) {
     float spawnZ = 0.0f;
     float spawnY = 270.0f;
 
-    ChunkManager chunkManager(10);
+    ChunkManager chunkManager(12);
     chunkManager.setTextureAtlas(&atlas);
     chunkManager.setVerticalRenderDistance(6);
 
@@ -179,10 +178,19 @@ int main(int argc, char* argv[]) {
     int fpsFrameCount = 0;
     float fps = 0.0f;
 
+    // Pre-cache keyboard state pointer to avoid repeated calls
+    const bool* keyState = nullptr;
+
     while (running) {
         auto currentFrameTime = std::chrono::high_resolution_clock::now();
         float deltaTime = std::chrono::duration<float>(currentFrameTime - lastFrameTime).count();
         lastFrameTime = currentFrameTime;
+
+        // **FIX FOR LAG SPIKE**: Cap deltaTime to prevent huge jumps when resuming
+        // Max 100ms (0.1s) to handle pauses gracefully
+        if (deltaTime > 0.1f) {
+            deltaTime = 0.1f;
+        }
 
         fpsFrameCount++;
         auto currentTime = std::chrono::high_resolution_clock::now();
@@ -193,18 +201,25 @@ int main(int argc, char* argv[]) {
             lastTime = currentTime;
         }
 
+        // Event handling
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             }
+
             if (event.type == SDL_EVENT_KEY_DOWN) {
-                if (event.key.key == SDLK_ESCAPE) {
+                switch (event.key.key) {
+                case SDLK_ESCAPE:
                     window.togglePause();
-                }
-                if (event.key.key == SDLK_F3) {
+                    // **FIX**: Reset frame time when pausing to prevent deltaTime spike
+                    lastFrameTime = std::chrono::high_resolution_clock::now();
+                    break;
+
+                case SDLK_F3:
                     debugOverlay.toggle();
-                }
-                if (event.key.key == SDLK_F1) {
+                    break;
+
+                case SDLK_F1: {
                     GameMode newMode = (player.getGameMode() == GameMode::SPECTATOR)
                         ? GameMode::SURVIVAL
                         : GameMode::SPECTATOR;
@@ -212,71 +227,95 @@ int main(int argc, char* argv[]) {
                     std::cout << "Switched to "
                         << (newMode == GameMode::SPECTATOR ? "SPECTATOR" : "SURVIVAL")
                         << " mode" << std::endl;
+                    break;
                 }
-                if (event.key.key == SDLK_1) {
-                    selectedBlock = Blocks::DIRT;  
-                    std::cout << "Selected: DIRT" << std::endl;
-                }
-                if (event.key.key == SDLK_2) {
-                    selectedBlock = Blocks::GRASS;  
-                    std::cout << "Selected: GRASS" << std::endl;
-                }
-                if (event.key.key == SDLK_3) {
-                    selectedBlock = Blocks::STONE;  
+
+                case SDLK_1:
+                    selectedBlock = Blocks::STONE;
                     std::cout << "Selected: STONE" << std::endl;
-                }
-                if (event.key.key == SDLK_4) {
-                    selectedBlock = Blocks::SAND;  
+                    break;
+                case SDLK_2:
+                    selectedBlock = Blocks::DIRT;
+                    std::cout << "Selected: DIRT" << std::endl;
+                    break;
+                case SDLK_3:
+                    selectedBlock = Blocks::GRASS;
+                    std::cout << "Selected: GRASS" << std::endl;
+                    break;
+                case SDLK_4:
+                    selectedBlock = Blocks::SAND;
                     std::cout << "Selected: SAND" << std::endl;
-                }
-                if (event.key.key == SDLK_5) {
-                    selectedBlock = Blocks::OAK_LOG; 
+                    break;
+                case SDLK_5:
+                    selectedBlock = Blocks::OAK_LOG;
                     std::cout << "Selected: OAK_LOG" << std::endl;
-                }
-                if (event.key.key == SDLK_6) {
-                    selectedBlock = Blocks::BLOCK_OF_WHITE_LIGHT;  
+                    break;
+                case SDLK_6:
+                    selectedBlock = Blocks::OAK_LEAVES;
+                    std::cout << "Selected: OAK_LEAVES" << std::endl;
+                    break;
+                case SDLK_7:
+                    selectedBlock = Blocks::BLOCK_OF_WHITE_LIGHT;
                     std::cout << "Selected: BLOCK_OF_WHITE_LIGHT" << std::endl;
+                    break;
+                case SDLK_8:
+                    selectedBlock = Blocks::BLOCK_OF_RED_LIGHT;
+                    std::cout << "Selected: BLOCK_OF_RED_LIGHT" << std::endl;
+                    break;
+                case SDLK_9:
+                    selectedBlock = Blocks::BLOCK_OF_GREEN_LIGHT;
+                    std::cout << "Selected: BLOCK_OF_GREEN_LIGHT" << std::endl;
+                    break;
+                case SDLK_0:
+                    selectedBlock = Blocks::BLOCK_OF_BLUE_LIGHT;
+                    std::cout << "Selected: BLOCK_OF_BLUE_LIGHT" << std::endl;
+                    break;
                 }
             }
 
-            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && !window.isPaused()) {
-                if (event.button.button == SDL_BUTTON_LEFT) {
-                    blockInteraction.breakBlock(camera, &chunkManager);
+            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                if (window.isPaused()) {
+                    int buttonID;
+                    if (pauseMenu.isButtonClicked(event.button.x, event.button.y,
+                        window.getWidth(), window.getHeight(), buttonID)) {
+                        if (buttonID == PauseMenu::BUTTON_RESUME) {
+                            window.togglePause();
+                            // **FIX**: Reset frame time when unpausing
+                            lastFrameTime = std::chrono::high_resolution_clock::now();
+                        }
+                        else if (buttonID == PauseMenu::BUTTON_FULLSCREEN) {
+                            window.toggleFullscreen();
+                        }
+                    }
                 }
-                else if (event.button.button == SDL_BUTTON_RIGHT) {
-                    blockInteraction.placeBlock(camera, &chunkManager, selectedBlock);
+                else {
+                    if (event.button.button == SDL_BUTTON_LEFT) {
+                        blockInteraction.breakBlock(camera, &chunkManager);
+                    }
+                    else if (event.button.button == SDL_BUTTON_RIGHT) {
+                        blockInteraction.placeBlock(camera, &chunkManager, selectedBlock);
+                    }
                 }
             }
 
-            if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && window.isPaused()) {
-                int buttonID;
-                if (pauseMenu.isButtonClicked(event.button.x, event.button.y,
-                    window.getWidth(), window.getHeight(), buttonID)) {
-                    if (buttonID == PauseMenu::BUTTON_RESUME) {
-                        window.togglePause();
-                    }
-                    else if (buttonID == PauseMenu::BUTTON_FULLSCREEN) {
-                        window.toggleFullscreen();
-                    }
-                }
-            }
             if (event.type == SDL_EVENT_WINDOW_RESIZED) {
                 window.handleResize(event.window.data1, event.window.data2);
             }
+
             if (event.type == SDL_EVENT_MOUSE_MOTION && !window.isPaused()) {
                 camera.processMouseMovement(event.motion.xrel, -event.motion.yrel);
             }
         }
 
+        // Game logic updates (only when not paused)
         if (!window.isPaused()) {
-            const bool* keyState = SDL_GetKeyboardState(nullptr);
+            // Cache keyboard state once per frame
+            keyState = SDL_GetKeyboardState(nullptr);
+
             float deltaFront = 0.0f, deltaRight = 0.0f, deltaUp = 0.0f;
             bool jump = false;
-            bool sprint = false;
-            bool zoom = false;
-
-            sprint = keyState[SDL_SCANCODE_LSHIFT] || keyState[SDL_SCANCODE_RSHIFT];
-            zoom = keyState[SDL_SCANCODE_Z];
+            bool sprint = keyState[SDL_SCANCODE_LSHIFT] || keyState[SDL_SCANCODE_RSHIFT];
+            bool zoom = keyState[SDL_SCANCODE_Z];
 
             if (keyState[SDL_SCANCODE_W]) deltaFront += 1.0f;
             if (keyState[SDL_SCANCODE_S]) deltaFront -= 1.0f;
@@ -297,6 +336,7 @@ int main(int argc, char* argv[]) {
             chunkManager.update(player.x, player.y, player.z);
         }
 
+        // Rendering
         glClearColor(0.5f, 0.7f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -322,22 +362,24 @@ int main(int argc, char* argv[]) {
         glUniformMatrix4fv(viewLoc, 1, GL_FALSE, view);
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
 
+        // Bind texture atlas once for all block types
         atlas.bind();
-        chunkManager.renderType(Blocks::GRASS);   
-        chunkManager.renderType(Blocks::DIRT);    
-        chunkManager.renderType(Blocks::STONE);   
-        chunkManager.renderType(Blocks::SAND);    
+
+        // Render all block types
+        chunkManager.renderType(Blocks::GRASS);
+        chunkManager.renderType(Blocks::DIRT);
+        chunkManager.renderType(Blocks::STONE);
+        chunkManager.renderType(Blocks::SAND);
         chunkManager.renderType(Blocks::OAK_LOG);
+        chunkManager.renderType(Blocks::OAK_LEAVES);
         chunkManager.renderType(Blocks::BLOCK_OF_WHITE_LIGHT);
         chunkManager.renderType(Blocks::BLOCK_OF_RED_LIGHT);
         chunkManager.renderType(Blocks::BLOCK_OF_GREEN_LIGHT);
         chunkManager.renderType(Blocks::BLOCK_OF_BLUE_LIGHT);
 
+        // Render UI elements
         if (!window.isPaused()) {
             blockOutline.render(camera, &chunkManager, view, projection);
-        }
-
-        if (!window.isPaused()) {
             crosshair.render(window.getWidth(), window.getHeight());
         }
 

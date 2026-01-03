@@ -4,6 +4,8 @@
 
 WorldSave::WorldSave(const std::string& worldName)
     : worldName(worldName), isDirty(false), lastSaveTime(std::chrono::steady_clock::now()) {
+    // Reserve space for typical world modifications
+    modifiedBlocks.reserve(10000);
     loadFromDisk();
 }
 
@@ -16,18 +18,18 @@ std::string WorldSave::getSaveFilePath() {
     return "SavedData/" + worldName + "/world_blocks.dat";
 }
 
-long long WorldSave::makeBlockKey(int x, int y, int z) {
-    long long key = (((long long)x & 0x1FFFFF) << 33) |
+// Inline this hot function - called frequently during chunk loading
+inline long long WorldSave::makeBlockKey(int x, int y, int z) {
+    return (((long long)x & 0x1FFFFF) << 33) |
         (((long long)y & 0xFFF) << 21) |
         ((long long)z & 0x1FFFFF);
-    return key;
 }
 
 void WorldSave::saveBlockChange(int x, int y, int z, BlockType type) {
     std::lock_guard<std::mutex> lock(saveMutex);
     long long key = makeBlockKey(x, y, z);
     modifiedBlocks[key] = type;
-    isDirty = true;  // Mark as having unsaved changes
+    isDirty = true;
 }
 
 bool WorldSave::getBlockChange(int x, int y, int z, BlockType& outType) {
@@ -50,22 +52,34 @@ bool WorldSave::hasBlockChange(int x, int y, int z) {
 void WorldSave::loadChunkModifications(int chunkX, int chunkZ, std::vector<ModifiedBlock>& modifications) {
     std::lock_guard<std::mutex> lock(saveMutex);
 
-    int minX = chunkX * 16;
-    int maxX = minX + 16;
-    int minZ = chunkZ * 16;
-    int maxZ = minZ + 16;
+    // Pre-calculate bounds once
+    const int minX = chunkX * 16;
+    const int maxX = minX + 16;
+    const int minZ = chunkZ * 16;
+    const int maxZ = minZ + 16;
 
-    for (auto& [key, type] : modifiedBlocks) {
+    // Reserve space to avoid reallocations (typical chunk has 10-100 modifications)
+    modifications.reserve(100);
+
+    // Use const reference to avoid copies
+    for (const auto& [key, type] : modifiedBlocks) {
+        // Extract coordinates using bit operations
         int x = (int)((key >> 33) & 0x1FFFFF);
-        int y = (int)((key >> 21) & 0xFFF);
         int z = (int)(key & 0x1FFFFF);
 
+        // Sign extend for negative coordinates
         if (x & 0x100000) x |= 0xFFE00000;
         if (z & 0x100000) z |= 0xFFE00000;
 
-        if (x >= minX && x < maxX && z >= minZ && z < maxZ) {
-            modifications.push_back({ x, y, z, type });
+        // Quick rejection test - check X and Z first (most likely to fail)
+        if (x < minX || x >= maxX || z < minZ || z >= maxZ) {
+            continue;
         }
+
+        // Only extract Y if X and Z are in range (saves work)
+        int y = (int)((key >> 21) & 0xFFF);
+
+        modifications.push_back({ x, y, z, type });
     }
 }
 
@@ -81,16 +95,30 @@ void WorldSave::loadFromDisk() {
     int count;
     file.read((char*)&count, sizeof(int));
 
-    for (int i = 0; i < count; i++) {
+    // Reserve space for all blocks at once to avoid rehashing
+    modifiedBlocks.reserve(count);
+
+    // Pre-allocate buffer for batch reading (read multiple blocks at once)
+    struct BlockData {
         int x, y, z;
         BlockType type;
-        file.read((char*)&x, sizeof(int));
-        file.read((char*)&y, sizeof(int));
-        file.read((char*)&z, sizeof(int));
-        file.read((char*)&type, sizeof(BlockType));
+    };
 
-        long long key = makeBlockKey(x, y, z);
-        modifiedBlocks[key] = type;
+    std::vector<BlockData> buffer;
+    const int bufferSize = 1024; // Read 1024 blocks at a time
+    buffer.resize(bufferSize);
+
+    int remaining = count;
+    while (remaining > 0) {
+        int toRead = std::min(remaining, bufferSize);
+        file.read((char*)buffer.data(), toRead * sizeof(BlockData));
+
+        for (int i = 0; i < toRead; i++) {
+            long long key = makeBlockKey(buffer[i].x, buffer[i].y, buffer[i].z);
+            modifiedBlocks[key] = buffer[i].type;
+        }
+
+        remaining -= toRead;
     }
 
     file.close();
@@ -98,7 +126,7 @@ void WorldSave::loadFromDisk() {
 }
 
 void WorldSave::saveToDisk() {
-    if (!isDirty) return;  // Don't save if nothing changed
+    if (!isDirty) return;
 
     std::string filepath = getSaveFilePath();
     std::ofstream file(filepath, std::ios::binary);
@@ -110,18 +138,37 @@ void WorldSave::saveToDisk() {
     int count = modifiedBlocks.size();
     file.write((char*)&count, sizeof(int));
 
-    for (auto& [key, type] : modifiedBlocks) {
+    // Pre-allocate buffer for batch writing (write multiple blocks at once)
+    struct BlockData {
+        int x, y, z;
+        BlockType type;
+    };
+
+    std::vector<BlockData> buffer;
+    const int bufferSize = 1024; // Write 1024 blocks at a time
+    buffer.reserve(bufferSize);
+
+    for (const auto& [key, type] : modifiedBlocks) {
         int x = (int)((key >> 33) & 0x1FFFFF);
         int y = (int)((key >> 21) & 0xFFF);
         int z = (int)(key & 0x1FFFFF);
 
+        // Sign extend for negative coordinates
         if (x & 0x100000) x |= 0xFFE00000;
         if (z & 0x100000) z |= 0xFFE00000;
 
-        file.write((char*)&x, sizeof(int));
-        file.write((char*)&y, sizeof(int));
-        file.write((char*)&z, sizeof(int));
-        file.write((char*)&type, sizeof(BlockType));
+        buffer.push_back({ x, y, z, type });
+
+        // Write buffer when full
+        if (buffer.size() >= bufferSize) {
+            file.write((char*)buffer.data(), buffer.size() * sizeof(BlockData));
+            buffer.clear();
+        }
+    }
+
+    // Write remaining blocks
+    if (!buffer.empty()) {
+        file.write((char*)buffer.data(), buffer.size() * sizeof(BlockData));
     }
 
     file.close();

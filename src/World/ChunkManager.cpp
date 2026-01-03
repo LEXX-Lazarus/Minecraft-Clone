@@ -22,7 +22,9 @@ ChunkManager::ChunkManager(int rd, const std::string& worldName)
     textureAtlas(nullptr),
     worldSave(std::make_unique<WorldSave>(worldName)) {
 
-    unsigned int threadCount = std::max(2u, std::thread::hardware_concurrency());
+    // Use more threads for generation
+    unsigned int threadCount = std::min(8u, std::max(4u, std::thread::hardware_concurrency()));
+    workerThreads.reserve(threadCount);
     for (unsigned int i = 0; i < threadCount; ++i) {
         workerThreads.push_back(std::thread(&ChunkManager::generationWorker, this));
     }
@@ -66,25 +68,26 @@ void ChunkManager::generationWorker() {
         Chunk* chunk = new Chunk(cx, cy, cz);
         TerrainGenerator::generateTerrain(*chunk);
 
+        // Load modifications if they exist
         std::vector<ModifiedBlock> modifications;
         worldSave->loadChunkModifications(cx, cz, modifications);
 
-        int chunkWorldYMin = cy * CHUNK_SIZE_Y;
-        int chunkWorldYMax = chunkWorldYMin + CHUNK_SIZE_Y - 1;
+        if (!modifications.empty()) {
+            int chunkWorldYMin = cy * CHUNK_SIZE_Y;
+            int chunkWorldYMax = chunkWorldYMin + CHUNK_SIZE_Y - 1;
 
-        for (auto& mod : modifications) {
-            if (mod.y < chunkWorldYMin || mod.y > chunkWorldYMax) {
-                continue;
-            }
+            for (const auto& mod : modifications) {
+                if (mod.y < chunkWorldYMin || mod.y > chunkWorldYMax) continue;
 
-            int localX = mod.x - cx * CHUNK_SIZE_X;
-            int localY = mod.y - cy * CHUNK_SIZE_Y;
-            int localZ = mod.z - cz * CHUNK_SIZE_Z;
+                int localX = mod.x - cx * CHUNK_SIZE_X;
+                int localY = mod.y - cy * CHUNK_SIZE_Y;
+                int localZ = mod.z - cz * CHUNK_SIZE_Z;
 
-            if (localX >= 0 && localX < CHUNK_SIZE_X &&
-                localY >= 0 && localY < CHUNK_SIZE_Y &&
-                localZ >= 0 && localZ < CHUNK_SIZE_Z) {
-                chunk->setBlock(localX, localY, localZ, mod.type);
+                if (localX >= 0 && localX < CHUNK_SIZE_X &&
+                    localY >= 0 && localY < CHUNK_SIZE_Y &&
+                    localZ >= 0 && localZ < CHUNK_SIZE_Z) {
+                    chunk->setBlock(localX, localY, localZ, mod.type);
+                }
             }
         }
 
@@ -116,21 +119,51 @@ void ChunkManager::update(float playerX, float playerY, float playerZ) {
 }
 
 void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
+    // ========== FIX #1: SMART QUEUE FILTER ==========
+    // OLD CODE: Destroyed entire queue every frame with std::swap(generationQueue, empty)
+    // NEW CODE: Only remove chunks that are truly distant, keep nearby work
     {
         std::lock_guard<std::mutex> lock(mutex);
-        std::queue<std::tuple<int, int, int>> empty;
-        std::swap(generationQueue, empty);
-        queuedChunks.clear();
+        
+        std::queue<std::tuple<int, int, int>> filteredQueue;
+        const int keepDistance = (renderDistance + 6) * (renderDistance + 6);
+        
+        // Filter the queue instead of destroying it
+        while (!generationQueue.empty()) {
+            auto coords = generationQueue.front();
+            generationQueue.pop();
+            
+            int cx = std::get<0>(coords);
+            int cy = std::get<1>(coords);
+            int cz = std::get<2>(coords);
+            
+            int dx = cx - pcx;
+            int dy = cy - pcy;
+            int dz = cz - pcz;
+            
+            // Keep if still within extended range
+            if (dx * dx + dy * dy + dz * dz <= keepDistance) {
+                filteredQueue.push(coords);
+            } else {
+                // Remove from queued set only if we're discarding it
+                queuedChunks.erase(makeKey(cx, cy, cz));
+            }
+        }
+        
+        generationQueue = std::move(filteredQueue);
+        
+        // Preserve chunks currently being generated
         for (const auto& c : chunksBeingGenerated) {
             queuedChunks.insert(makeKey(std::get<0>(c), std::get<1>(c), std::get<2>(c)));
         }
     }
 
+    const int estimatedChunks = (2 * renderDistance + 1) * (2 * renderDistance + 1) * (2 * verticalRenderDistance + 1);
     std::vector<ChunkDistanceEntry> ordered;
+    ordered.reserve(estimatedChunks);
 
     for (int dx = -renderDistance; dx <= renderDistance; dx++) {
         for (int dz = -renderDistance; dz <= renderDistance; dz++) {
-
             int distSqXZ = dx * dx + dz * dz;
             if (distSqXZ > renderDistanceSquared) continue;
 
@@ -146,14 +179,56 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
         }
     }
 
-    std::sort(ordered.begin(), ordered.end(), [](const ChunkDistanceEntry& a, const ChunkDistanceEntry& b) {
-        return a.distSq < b.distSq;
-        });
+    // ========== FIX #3: DIRECTIONAL PRIORITY ==========
+    // Calculate player movement direction for smart prioritization
+    int moveX = pcx - lastPlayerChunkX;
+    int moveZ = pcz - lastPlayerChunkZ;
+    
+    std::sort(ordered.begin(), ordered.end(), [pcx, pcz, moveX, moveZ](const ChunkDistanceEntry& a, const ChunkDistanceEntry& b) {
+        // Primary sort: distance (closer chunks first)
+        if (a.distSq != b.distSq) {
+            return a.distSq < b.distSq;
+        }
+        
+        // Secondary sort: direction of travel (if moving)
+        if (moveX != 0 || moveZ != 0) {
+            int aDirX = a.x - pcx;
+            int aDirZ = a.z - pcz;
+            int bDirX = b.x - pcx;
+            int bDirZ = b.z - pcz;
+            
+            // Dot product with movement direction (positive = ahead of player)
+            int aDot = aDirX * moveX + aDirZ * moveZ;
+            int bDot = bDirX * moveX + bDirZ * moveZ;
+            
+            if (aDot != bDot) {
+                return aDot > bDot; // Prioritize chunks ahead of player
+            }
+        }
+        
+        return false;
+    });
 
-    unloadDistantChunks(pcx, pcy, pcz);
-
+    // ========== FIX #2 & #4: QUEUE FIRST, ADAPTIVE BATCHING ==========
+    // OLD CODE: unloadDistantChunks() ran HERE (before queueing)
+    // NEW CODE: Queue priority chunks FIRST, then unload
     int queued = 0;
+    
+    // ADAPTIVE BATCH LIMIT based on movement speed and queue state
+    int maxQueuePerUpdate;
+    bool isMovingFast = (moveX * moveX + moveZ * moveZ) > 4; // Moving more than 2 chunks per update
+    
+    if (isMovingFast) {
+        // Fast movement: limit batching to prioritize direction
+        maxQueuePerUpdate = 96;
+    } else {
+        // Stationary or slow: aggressively load everything in render distance
+        maxQueuePerUpdate = 128; // Load all visible chunks quickly
+    }
+    
     for (const auto& entry : ordered) {
+        if (queued >= maxQueuePerUpdate) break;
+        
         long long key = makeKey(entry.x, entry.y, entry.z);
 
         bool skip = false;
@@ -176,6 +251,10 @@ void ChunkManager::updateDesiredChunks(int pcx, int pcy, int pcz) {
     if (queued > 0) {
         queueCV.notify_all();
     }
+
+    // ========== FIX #2: UNLOAD AFTER QUEUEING ==========
+    // Moved from line 172 to here - prioritizes loading over unloading
+    unloadDistantChunks(pcx, pcy, pcz);
 }
 
 void ChunkManager::processReadyChunks() {
@@ -185,49 +264,86 @@ void ChunkManager::processReadyChunks() {
         readyCount = readyChunks.size();
     }
 
-    int maxPerFrame = 24;
-    if (readyCount > 50) maxPerFrame = 48;
-    if (readyCount > 100) maxPerFrame = 96;
-    if (readyCount > 200) maxPerFrame = 144;
+    // AGGRESSIVE LOADING: Process chunks faster to keep up with generation
+    // When stationary: load chunks as fast as GPU can handle (like Minecraft)
+    // When moving fast: moderate rate to maintain FPS
+    int maxPerFrame = 32;  // Base rate - faster than before
+    if (readyCount > 50) maxPerFrame = 48;   // Moderate backlog - speed up
+    if (readyCount > 100) maxPerFrame = 64;  // Heavy backlog - go faster
+    if (readyCount > 200) maxPerFrame = 96;  // Emergency - clear backlog quickly
 
-    for (int i = 0; i < maxPerFrame; i++) {
-        Chunk* chunk = nullptr;
-        long long key;
+    std::vector<Chunk*> chunksToProcess;
+    std::vector<long long> keys;
+    chunksToProcess.reserve(maxPerFrame);
+    keys.reserve(maxPerFrame);
 
-        {
-            std::lock_guard<std::mutex> lock(mutex);
-            if (readyChunks.empty()) return;
-
-            chunk = readyChunks.front();
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        for (int i = 0; i < maxPerFrame && !readyChunks.empty(); i++) {
+            Chunk* chunk = readyChunks.front();
             readyChunks.pop();
-            key = makeKey(chunk->chunkX, chunk->chunkY, chunk->chunkZ);
+            chunksToProcess.push_back(chunk);
+            keys.push_back(makeKey(chunk->chunkX, chunk->chunkY, chunk->chunkZ));
         }
+    }
 
+    // Track which neighbors need rebuilds
+    std::unordered_set<long long> chunksNeedingRebuild;
+
+    {
         std::lock_guard<std::mutex> cLock(chunksMutex);
 
-        if (chunks.count(key)) {
-            delete chunk;
-            continue;
-        }
-        chunks[key] = chunk;
+        for (size_t i = 0; i < chunksToProcess.size(); i++) {
+            Chunk* chunk = chunksToProcess[i];
+            long long key = keys[i];
 
-        linkChunkNeighborsUnsafe(chunk);
+            if (chunks.count(key)) {
+                delete chunk;
+                continue;
+            }
 
-        chunk->buildMesh(textureAtlas);
+            chunks[key] = chunk;
+            linkChunkNeighborsUnsafe(chunk);
+            
+            // Build initial mesh
+            chunk->buildMesh(textureAtlas);
 
-        static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
-        static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
-        static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
+            // Mark neighbors for rebuild
+            static const int dx[6] = { 0, 0, 1, -1, 0, 0 };
+            static const int dy[6] = { 0, 0, 0, 0, 1, -1 };
+            static const int dz[6] = { 1, -1, 0, 0, 0, 0 };
 
-        for (int dir = 0; dir < 6; dir++) {
-            Chunk* neighbor = chunk->getNeighbor(dir);
-            if (neighbor && neighbor->getNeighbor(dir ^ 1) == chunk) {
-                neighbor->buildMesh(textureAtlas);
+            for (int dir = 0; dir < 6; dir++) {
+                long long neighborKey = makeKey(
+                    chunk->chunkX + dx[dir],
+                    chunk->chunkY + dy[dir],
+                    chunk->chunkZ + dz[dir]
+                );
+                
+                if (chunks.count(neighborKey)) {
+                    chunksNeedingRebuild.insert(neighborKey);
+                }
             }
         }
 
-        {
-            std::lock_guard<std::mutex> lock(mutex);
+        // Adaptive neighbor rebuilding - more generous limits
+        int maxNeighborRebuilds = (readyCount < 50) ? 48 : 24;
+        int rebuildsThisFrame = 0;
+        
+        for (long long neighborKey : chunksNeedingRebuild) {
+            if (rebuildsThisFrame >= maxNeighborRebuilds) break;
+            
+            auto it = chunks.find(neighborKey);
+            if (it != chunks.end()) {
+                it->second->buildMesh(textureAtlas);
+                rebuildsThisFrame++;
+            }
+        }
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        for (long long key : keys) {
             queuedChunks.erase(key);
         }
     }
@@ -253,30 +369,41 @@ void ChunkManager::linkChunkNeighborsUnsafe(Chunk* chunk) {
 
 void ChunkManager::unloadDistantChunks(int pcx, int pcy, int pcz) {
     std::vector<long long> toUnload;
-    const int limit = (renderDistance + 2) * (renderDistance + 2);
+    
+    // ========== FIX #5: INCREASED UNLOAD BUFFER ==========
+    // OLD CODE: renderDistance + 2 (too aggressive, caused premature unloading)
+    // NEW CODE: renderDistance + 6 (gives breathing room when moving fast)
+    const int unloadBuffer = 6;
+    const int limit = (renderDistance + unloadBuffer) * (renderDistance + unloadBuffer);
 
     {
         std::lock_guard<std::mutex> lock(chunksMutex);
+        toUnload.reserve(chunks.size() / 4);
+
         for (auto& [key, chunk] : chunks) {
             int dx = chunk->chunkX - pcx;
             int dy = chunk->chunkY - pcy;
             int dz = chunk->chunkZ - pcz;
+
             if (dx * dx + dy * dy + dz * dz > limit) {
                 toUnload.push_back(key);
             }
         }
 
+        // Unlink neighbors
         for (long long key : toUnload) {
             Chunk* chunk = chunks[key];
-
             for (int dir = 0; dir < 6; dir++) {
                 Chunk* neighbor = chunk->getNeighbor(dir);
                 if (neighbor) {
                     neighbor->setNeighbor(dir ^ 1, nullptr);
                 }
             }
+        }
 
-            delete chunk;
+        // Delete
+        for (long long key : toUnload) {
+            delete chunks[key];
             chunks.erase(key);
         }
     }
@@ -328,9 +455,10 @@ void ChunkManager::linkChunkNeighbors(Chunk* chunk) {
 }
 
 void ChunkManager::render() {
+    // **CRITICAL FIX**: Single lock, single iteration, render all block types
     std::lock_guard<std::mutex> lock(chunksMutex);
     for (auto& [_, chunk] : chunks) {
-        chunk->render();
+        chunk->render();  // Renders ALL meshes in one call
     }
 }
 
