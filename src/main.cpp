@@ -273,8 +273,10 @@ int main(int argc, char* argv[]) {
             float deltaFront = 0.0f, deltaRight = 0.0f, deltaUp = 0.0f;
             bool jump = false;
             bool sprint = false;
+            bool zoom = false;
 
             sprint = keyState[SDL_SCANCODE_LSHIFT] || keyState[SDL_SCANCODE_RSHIFT];
+            zoom = keyState[SDL_SCANCODE_Z];
 
             if (keyState[SDL_SCANCODE_W]) deltaFront += 1.0f;
             if (keyState[SDL_SCANCODE_S]) deltaFront -= 1.0f;
@@ -290,6 +292,7 @@ int main(int argc, char* argv[]) {
             }
 
             player.processInput(deltaFront, deltaRight, deltaUp, jump, sprint, camera);
+            camera.processZoom(zoom, deltaTime);
             player.update(deltaTime, &chunkManager, camera);
             chunkManager.update(player.x, player.y, player.z);
         }
@@ -307,7 +310,8 @@ int main(int argc, char* argv[]) {
             camera.x + camera.frontX, camera.y + camera.frontY, camera.z + camera.frontZ,
             0.0f, 1.0f, 0.0f);
 
-        perspectiveMatrix(projection, 70.0f * 3.14159f / 180.0f,
+        float currentFOV = camera.getFOV() * 3.14159f / 180.0f;
+        perspectiveMatrix(projection, currentFOV,
             (float)window.getWidth() / (float)window.getHeight(), 0.1f, 1000.0f);
 
         unsigned int modelLoc = glGetUniformLocation(shader.getID(), "model");
