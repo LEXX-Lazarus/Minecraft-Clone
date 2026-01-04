@@ -10,7 +10,7 @@ Player::Player(float posX, float posY, float posZ)
     velocityX(0.0f), velocityY(0.0f), velocityZ(0.0f),
     width(0.6f), height(1.8f), eyeHeight(1.0f),
     walkSpeed(4.317f), sprintSpeed(6.612f), jumpStrength(10.0f),
-    flySpeed(6.5f), isOnGround(false), gameMode(GameMode::SPECTATOR) {
+    flySpeed(9.0f), isOnGround(false), gameMode(GameMode::SPECTATOR) {
 }
 
 void Player::setGameMode(GameMode mode) {
